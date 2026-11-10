@@ -276,6 +276,8 @@ def _render(settings: Settings, db: Database, now: float) -> str:
             lines.append(f'{title:<35}PAUSING (finishing the unit in progress; `bn pause` again stops it now)')
         else:
             lines.append(f'{title:<35}PAUSED since {clock(pause.since)} ({format_duration(now - pause.since)})')
+    elif (_meta_float(db, 'restart_at') or 0) > now:
+        lines.append(f'{title:<35}RESTARTING in {int(_meta_float(db, "restart_at") - now)} s (scheduled restart)')
     else:
         started = _meta_float(db, 'run_started_at') or _meta_float(db, 'worker_started_at') or now
         lines.append(f'{title:<35}RUNNING since {clock(started)} ({format_duration(now - started)})')
@@ -312,7 +314,9 @@ def _render(settings: Settings, db: Database, now: float) -> str:
 
     work = folder_bytes(settings.work_dir)
     drives = '   '.join(f'{label} {format_gb(free_bytes(path))} free' for label, path in drives_to_report(settings.root))
-    lines.append(f'{"This PC":<10}{format_gb(work)} of work in progress   {drives}')
+    last_restart = _meta_float(db, 'last_restart_at')
+    restart_text = f'   last restart {clock(last_restart, with_day=True)}' if last_restart is not None else str()
+    lines.append(f'{"This PC":<10}{format_gb(work)} of work in progress   {drives}{restart_text}')
 
     gpu_name = db.get_meta('gpu_name') or 'not tested yet (run selfcheck)'
     backend = db.get_meta('gpu_backend')

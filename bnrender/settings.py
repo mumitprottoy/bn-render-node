@@ -58,6 +58,15 @@ class Settings:
     git_branch: str = 'main'
     selfcheck_command: list[str] | None = None
     api_base_override: str | None = None
+    screen_enabled: bool = True
+    screen_port: int = 8765
+    kiosk_enabled: bool = IS_WINDOWS
+    kiosk_check_seconds: float = 60.0
+    reboot_enabled: bool = IS_WINDOWS
+    reboot_every_hours: float = 6.0
+    restart_countdown_seconds: float = 60.0
+    restart_retry_seconds: float = 3600.0
+    startup_selfcheck: bool = IS_WINDOWS
 
     @property
     def work_dir(self) -> Path:

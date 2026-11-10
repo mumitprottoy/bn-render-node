@@ -8,6 +8,7 @@ cut resumes where it stopped.
 
 import dataclasses
 import datetime
+import getpass
 import json
 import logging
 import subprocess
@@ -22,6 +23,13 @@ from .api import TransientError
 from .completion import finish
 from .control import read_pause
 from .db import Database
+from .desktop import disable_screen_saver
+from .desktop import keep_awake
+from .desktop import kiosk_running
+from .desktop import launch_kiosk
+from .desktop import other_users_signed_in
+from .desktop import restart_computer
+from .desktop import system_uptime_seconds
 from .executors import PAUSE_AFTER_UNIT
 from .executors import PAUSE_NOW
 from .executors import UnitControl
@@ -54,6 +62,7 @@ from .procs import kill_orphan
 from .procs import parent_alive
 from .procs import psutil
 from .procs import set_own_priority
+from .screen import ScreenServer
 from .selfupdate import update_app
 from .settings import Settings
 from .sysinfo import free_bytes
@@ -88,8 +97,20 @@ class ActiveUnit:
 
 
 class Worker:
-    def __init__(self, settings: Settings, api: ApiClient | None = None, parent_pid: int | None = None) -> None:
+    def __init__(self, settings: Settings, api: ApiClient | None = None, parent_pid: int | None = None,
+                 uptime: Callable[[], float | None] = system_uptime_seconds,
+                 restart: Callable[[], tuple[bool, str]] = restart_computer,
+                 other_users: Callable[[], list[str]] = other_users_signed_in) -> None:
         self.settings = settings
+        self.uptime = uptime
+        self.restart = restart
+        self.other_users = other_users
+        self.screen: ScreenServer | None = None
+        self.restart_deadline: float | None = None
+        self.restart_retry_at = 0.0
+        self.finished = False
+        self.gpu_problem = str()
+        self.next_desktop_check = 0.0
         settings.ensure_folders()
         self.db = Database(settings.db_path)
         self.db.init_schema()
@@ -137,6 +158,62 @@ class Worker:
         self.db.set_meta('heartbeat', str(time.time()))
         self.db.add_event('info', 'The runner started.')
         logger.info('Runner started.')
+        self.gpu_problem = self.db.get_meta('gpu_problem') or str()
+        keep_awake()
+        disable_screen_saver()
+        if self.settings.screen_enabled:
+            self.screen = ScreenServer(self.settings, self.screen_info)
+            if not self.screen.start():
+                self.screen = None
+        self._desktop_tick(force=True)
+        if self.settings.startup_selfcheck and not self.finished:
+            self._startup_selfcheck()
+
+    def screen_info(self) -> dict:
+        deadline = self.restart_deadline
+        return dict(restart_in=None if deadline is None else max(0.0, deadline - time.time()),
+                    finished=self.finished, gpu_problem=self.gpu_problem)
+
+    def _desktop_tick(self, force: bool = False) -> None:
+        """Keep the PC and the screen awake, and the screen page open in Edge (relaunched if it was closed)."""
+        now = time.monotonic()
+        if not force and now < self.next_desktop_check:
+            return
+        self.next_desktop_check = now + self.settings.kiosk_check_seconds
+        keep_awake()
+        if self.settings.kiosk_enabled and self.screen is not None:
+            running = kiosk_running(self.screen.url)
+            if running is False or (running is None and force):
+                launch_kiosk(self.screen.url, self.settings.state_dir / 'edge-profile')
+
+    def _startup_selfcheck(self) -> None:
+        """Check the graphics card once in the node's own session (and again at every start while it fails), so GPU
+        jobs never fall back to rendering on the CPU."""
+        user = getpass.getuser()
+        if self.db.get_meta('selfcheck_user') == user and not self.gpu_problem:
+            return
+        report = self.settings.state_dir / 'selfcheck-runner.json'
+        report.unlink(missing_ok=True)
+        command = [*self.settings.python_command, '-m', 'bnrender', 'selfcheck', '--report', str(report)]
+        try:
+            subprocess.run(command, cwd=str(self.settings.app_dir), capture_output=True, text=True,
+                           timeout=self.settings.selfcheck_timeout, stdin=subprocess.DEVNULL,
+                           env=child_environment(dict(PYTHONPATH=python_path_for(self.settings),
+                                                      BN_RENDER_ROOT=str(self.settings.root))),
+                           **child_popen_options())
+            checks = json.loads(report.read_text(encoding='utf-8')).get('checks') or list()
+        except (OSError, ValueError, subprocess.TimeoutExpired) as error:
+            checks = list()
+            logger.error(f'The start-up check did not finish: {error}')
+        gpu = next((check for check in checks if check.get('name') == 'gpu'), None)
+        if gpu is not None and gpu.get('status') == 'PASS':
+            self.gpu_problem = str()
+            self.db.delete_meta('gpu_problem')
+            self.db.set_meta('selfcheck_user', user)
+            return
+        self.gpu_problem = str((gpu or dict()).get('detail') or 'the graphics card check did not finish')
+        self.db.set_meta('gpu_problem', self.gpu_problem)
+        self.db.add_event('error', f'GPU jobs wait: {self.gpu_problem}')
 
     def is_finished_without_key(self) -> bool:
         if self.db.get_meta('finished_at') is None:
@@ -150,7 +227,10 @@ class Worker:
     def run(self, until: Callable[[], bool] | None = None, timeout: float | None = None) -> int:
         if self.is_finished_without_key():
             logger.info('Every job is finished and the key is removed; nothing to do.')
-            return EXIT_DONE
+            if not self.settings.screen_enabled:
+                return EXIT_DONE
+            # Keep showing "Finished" on the screen.
+            self.finished = True
         self.startup()
         deadline = None if timeout is None else time.monotonic() + timeout
         try:
@@ -167,6 +247,8 @@ class Worker:
                     return EXIT_DONE
         finally:
             self.stop_all(PAUSE_NOW, 'The runner is stopping.')
+            if self.screen is not None:
+                self.screen.stop()
             self.db.close()
 
     def stop_all(self, level: int, reason: str, wait_seconds: float = 60.0) -> None:
@@ -185,8 +267,15 @@ class Worker:
             logger.warning('The supervisor is gone; stopping.')
             self.stop_event.set()
             return EXIT_DONE
+        self._desktop_tick()
+        if self.finished:
+            self._heartbeat()
+            return None
         pause = read_pause(self.settings)
         self._apply_pause(pause)
+        code = self._restart_tick(pause)
+        if code is not None:
+            return code
         if self.restart_requested:
             if self.drain_started_at is None:
                 self.drain_started_at = time.monotonic()
@@ -196,15 +285,18 @@ class Worker:
             if time.monotonic() - self.drain_started_at > self.settings.drain_timeout:
                 self.stop_all(PAUSE_NOW, 'Restarting for an update.')
                 return EXIT_RESTART
-        if pause is None and self._maintenance_due():
+        if pause is None and self.restart_deadline is None and self._maintenance_due():
             gpu_busy = any(unit.lane == 'gpu' for unit in self.active.values())
             self.maintenance(allow_update=not gpu_busy)
         if pause is None and time.monotonic() - self.repeats_checked_at >= REPEAT_CHECK_SECONDS:
             self.repeats_checked_at = time.monotonic()
             self.check_repeats()
         self.refresh_job_states()
-        if pause is None and not self.restart_requested:
+        if pause is None and not self.restart_requested and self.restart_deadline is None:
             if self._maybe_finish():
+                if self.settings.screen_enabled:
+                    self.finished = True
+                    return None
                 return EXIT_DONE
             self.schedule()
         self._heartbeat()
@@ -227,6 +319,63 @@ class Worker:
         for unit in list(self.active.values()):
             if unit.phase != 'upload':
                 unit.control.request(level, 'Paused.')
+
+    # scheduled restarts (Windows): every reboot_every_hours, at a clean point, never while paused
+
+    def _restart_blockers(self, pause: object, counting_down: bool) -> list[str]:
+        reasons: list[str] = list()
+        if pause is not None:
+            reasons.append('paused by Mumit Boss')
+        if not counting_down:
+            if any(unit.lane == 'gpu' and unit.phase == 'render' for unit in self.active.values()):
+                reasons.append('a GPU item is rendering')
+            if any(unit.phase == 'upload' for unit in self.active.values()):
+                reasons.append('an upload is in flight')
+        others = self.other_users()
+        if others:
+            reasons.append(f'{", ".join(others)} signed in')
+        return reasons
+
+    def _restart_tick(self, pause: object) -> int | None:
+        if not self.settings.reboot_enabled or self.settings.reboot_every_hours <= 0:
+            return None
+        now = time.time()
+        if self.restart_deadline is not None:
+            blockers = self._restart_blockers(pause, counting_down=True)
+            if blockers:
+                self.restart_deadline = None
+                self.db.delete_meta('restart_at')
+                self.db.add_event('info', f'Scheduled restart put off ({"; ".join(blockers)}).')
+                return None
+            if now >= self.restart_deadline:
+                return self._restart_now()
+            return None
+        if now < self.restart_retry_at or self.restart_requested:
+            return None
+        uptime = self.uptime()
+        if uptime is None or uptime < self.settings.reboot_every_hours * 3600:
+            return None
+        if self._restart_blockers(pause, counting_down=False):
+            return None
+        self.restart_deadline = now + self.settings.restart_countdown_seconds
+        self.db.set_meta('restart_at', str(self.restart_deadline))
+        self.db.add_event('info', f'Restarting the PC in {self.settings.restart_countdown_seconds:.0f} s '
+                                  f'(up for {uptime / 3600:.1f} h).')
+        return None
+
+    def _restart_now(self) -> int | None:
+        self.restart_deadline = None
+        self.db.delete_meta('restart_at')
+        self.stop_all(PAUSE_NOW, 'Restarting the PC.')
+        now = time.time()
+        succeeded, message = self.restart()
+        if succeeded:
+            self.db.set_meta('last_restart_at', str(now))
+            self.db.add_event('info', f'Restarting the PC (scheduled every {self.settings.reboot_every_hours:g} h).')
+            return EXIT_DONE
+        self.restart_retry_at = now + self.settings.restart_retry_seconds
+        self.db.add_event('error', f'The scheduled restart failed: {message}')
+        return None
 
     def _maintenance_due(self) -> bool:
         now = time.time()
@@ -542,6 +691,8 @@ class Worker:
             return 'waiting', job['inputs_reason'] or 'waiting for its inputs'
         if not job['models_ok']:
             return 'waiting', job['models_reason'] or 'waiting for its models'
+        if self.gpu_problem and job['device'] == 'gpu':
+            return 'waiting', f'waiting for the graphics card ({self.gpu_problem})'
         if not job['items_known']:
             return 'waiting', 'waiting for its item list'
         total = count['total'] if count is not None else 0

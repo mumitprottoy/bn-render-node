@@ -36,8 +36,11 @@ def git(settings: Settings, *arguments: str, timeout: float = GIT_TIMEOUT) -> st
     environment = dict(os.environ)
     environment['GIT_TERMINAL_PROMPT'] = '0'
     try:
-        completed = subprocess.run(['git', '-C', str(settings.app_dir), *arguments], capture_output=True, text=True,
-                                   timeout=timeout, env=environment, stdin=subprocess.DEVNULL)
+        # app/ is cloned by the setup account and run by the node's own account; git refuses a repo owned by someone
+        # else unless it is named as safe.
+        safe = f'safe.directory={settings.app_dir.as_posix()}'
+        completed = subprocess.run(['git', '-c', safe, '-C', str(settings.app_dir), *arguments], capture_output=True,
+                                   text=True, timeout=timeout, env=environment, stdin=subprocess.DEVNULL)
     except (OSError, subprocess.TimeoutExpired) as error:
         raise GitError(f'git {arguments[0]} did not finish ({error}).') from error
     if completed.returncode != 0:
