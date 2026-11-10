@@ -87,6 +87,10 @@ class NodeTestCase(unittest.TestCase):
             self_update=False,
             drain_timeout=10,
             retry_delay_seconds=0.1,
+            screen_enabled=False,
+            kiosk_enabled=False,
+            reboot_enabled=False,
+            startup_selfcheck=False,
             input_retry_seconds=0.2,
         )
         for name, value in overrides.items():

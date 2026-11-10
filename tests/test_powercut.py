@@ -44,6 +44,7 @@ class PowerCutTest(NodeTestCase):
             BN_RENDER_ROOT=str(self.root), BN_APP_DIR=str(self.app), BN_BLENDER=str(FAKE_BLENDER), BN_FFMPEG=FFMPEG,
             BN_FFPROBE=FFPROBE, BN_GPU_DEVICE='METAL', FAKE_LOG=str(self.render_log), PYTHONPATH=str(REPO),
             BN_TUNING=json.dumps(dict(poll_seconds=0.05, heartbeat_seconds=0.5, self_update=False, min_free_gb=0,
+                                      screen_enabled=False, kiosk_enabled=False, reboot_enabled=False,
                                       finish_threads=2, backoff_initial=0.1)),
         )
         process = subprocess.Popen([sys.executable, '-m', 'bnrender', 'worker'], cwd=str(REPO), env=environment,
