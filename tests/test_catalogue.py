@@ -290,7 +290,7 @@ def fixture_plates() -> list[dict]:
         plate('lane/walk-to-line-pov-league-night', 'The walk to the line, her eyes',
               'Her eyes on the approach: four steps, each dip landing on a footstep, up to the foul line.',
               subjects=['approach_dots', 'foul_line', 'lane'], events=['walk_to_line'], angle='pov_bowler',
-              move='walk', size='medium', speed='real_time', mood='league_night_warm', story=['ritual', 'focus'],
+              move='handheld_walk', size='medium', speed='real_time', mood='league_night_warm', story=['ritual', 'focus'],
               series=['promo_emotional'], energy=2, lane_zone=['approach']),
         plate('lane/monitor-push-in-league-night', 'Push in on the lane monitor',
               'A level push in on the lane monitor; its screen corners are tracked so a score or clip can play on it.',

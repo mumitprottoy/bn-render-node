@@ -92,6 +92,23 @@ class Taxonomy:
             raise TaxonomyError(f'{source} needs a whole-number "version".') from error
         self.facets = self._parse_facets(raw.get('facets'))
         self.kinds = self._parse_kinds(raw.get('kinds'))
+        self.rules = self._parse_rules(raw.get('rules'))
+
+    def _parse_rules(self, raw_rules: object) -> list[dict]:
+        """Rules linking facets: when an item's labels match `when`, every facet in `require` must be present."""
+        if raw_rules is None:
+            return list()
+        if not isinstance(raw_rules, list):
+            raise TaxonomyError(f'{self.source}: "rules" must be a list.')
+        rules: list[dict] = list()
+        for rule in raw_rules:
+            when = rule.get('when') if isinstance(rule, dict) else None
+            if not isinstance(when, dict) or when.get('facet') not in self.facets or not isinstance(rule.get('require'), list):
+                raise TaxonomyError(f'{self.source}: each rule needs when.facet (a known facet) and a require list.')
+            rules.append(dict(facet=str(when['facet']), contains=when.get('contains'),
+                              any_of=[str(value) for value in when.get('in', list())], require=[str(name) for name in rule['require']],
+                              reason=str(rule.get('reason') or str())))
+        return rules
 
     def _parse_facets(self, raw_facets: object) -> dict[str, Facet]:
         if not isinstance(raw_facets, dict) or not raw_facets:
@@ -304,6 +321,22 @@ def validate_item(kind: str, labels: dict, taxonomy: Taxonomy | None = None) -> 
         if facet_name in spec.required and (raw is None or (isinstance(raw, (list, tuple, set, str)) and not raw)):
             continue
         problems.extend(validate_facet_values(facet, raw, kind))
+    problems.extend(_rule_problems(labels, taxonomy))
+    return problems
+
+
+def _rule_problems(labels: dict, taxonomy: Taxonomy) -> list[str]:
+    problems: list[str] = list()
+    for rule in getattr(taxonomy, 'rules', list()):
+        raw = labels.get(rule['facet'])
+        values = [str(value) for value in raw] if isinstance(raw, (list, tuple, set)) else ([str(raw)] if raw is not None else list())
+        matched = (rule['contains'] is not None and str(rule['contains']) in values) or any(value in rule['any_of'] for value in values)
+        if not matched:
+            continue
+        for required in rule['require']:
+            present = labels.get(required)
+            if present is None or (isinstance(present, (list, tuple, set, str)) and not present):
+                problems.append(f'The label "{required}" is needed because {rule["facet"]} is {", ".join(values)}: {rule["reason"]}.')
     return problems
 
 

@@ -67,7 +67,7 @@ items:
     - arrows
     events:
     - idle
-    camera_angle: behind_bowler
+    camera_angle: high_behind
     camera_move: push_in
     shot_size: establishing
     speed: real_time
@@ -189,7 +189,7 @@ items:
     events:
     - walk_to_line
     camera_angle: pov_bowler
-    camera_move: walk
+    camera_move: handheld_walk
     shot_size: wide
     speed: real_time
     lane_zone:
@@ -357,7 +357,7 @@ items:
     - house
     events:
     - idle
-    camera_angle: pov_bowler
+    camera_angle: eye_level
     camera_move: push_in
     shot_size: medium
     speed: real_time

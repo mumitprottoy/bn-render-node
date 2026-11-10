@@ -3,7 +3,7 @@
 # Each value: a one-line definition and the words people (and screenplays) use for it. Changes are reviewed like code,
 # and bump `version`, which is stored on every registered item.
 
-version: 1
+version: 2
 
 kinds:
   plate_3d:
@@ -47,6 +47,12 @@ kinds:
     required: []
     optional: []
 
+# Rules linking facets: when an item's labels match `when`, the `require` facets must be present.
+rules:
+  - { when: { facet: events, contains: leave }, require: [leave], reason: an item showing a leave must say which leave }
+  - { when: { facet: result, in: [leave, split] }, require: [leave], reason: a leave or split result must say which pins }
+  - { when: { facet: pins_state, in: [leave] }, require: [leave], reason: pins left standing must say which pins }
+
 facets:
 
   subjects:
@@ -55,17 +61,17 @@ facets:
       ball: { definition: The bowling ball., synonyms: [bowling ball, the ball, sixteen pounder] }
       pins: { definition: One or more pins., synonyms: [pin, bowling pins, wood] }
       head_pin: { definition: The 1 pin at the front of the rack., synonyms: [1 pin, one pin, headpin, front pin] }
-      rack: { definition: The full triangle of ten pins., synonyms: [ten pins, full rack, the triangle, pin deck setup] }
-      lane: { definition: The wooden lane surface., synonyms: [alley, the boards, the wood] }
+      rack: { definition: The full triangle of ten pins., synonyms: [full rack, the triangle, all ten standing] }
+      lane: { definition: The wooden lane surface., synonyms: [alley, the boards] }
       foul_line: { definition: The line at the end of the approach that must not be crossed., synonyms: [the line, foul] }
       arrows: { definition: The seven target arrows about 15 feet down the lane., synonyms: [targets, darts, the mark, aiming arrows] }
       approach_dots: { definition: The locator dots on the approach., synonyms: [dots, starting dots, approach markers] }
       guide_dots: { definition: The dots just past the foul line., synonyms: [lane dots, guides] }
-      gutter: { definition: The channel either side of the lane., synonyms: [channel, gutter ball] }
+      gutter: { definition: The channel either side of the lane., synonyms: [channel] }
       ball_return: { definition: The rack where balls come back to the bowler., synonyms: [return, ball rack, hood] }
       pinsetter: { definition: The machine that sets and lowers the pins., synonyms: [setting table, pin machine, the machine] }
       sweep: { definition: The bar that clears fallen pins., synonyms: [sweep bar, rake] }
-      monitor: { definition: The overhead lane screen., synonyms: [screen, scoreboard, overhead monitor, tv] }
+      monitor: { definition: The overhead lane screen., synonyms: [screen, scoreboard, overhead monitor, lane screen] }
       house: { definition: The whole bowling centre., synonyms: [bowling alley, bowling center, the building, venue] }
       pin_deck: { definition: The area where the pins stand., synonyms: [deck, pit area] }
 
@@ -77,12 +83,12 @@ facets:
       light_pocket_hit: { definition: The ball hits the pocket thin., synonyms: [light hit, thin hit] }
       high_pocket_hit: { definition: The ball hits too much head pin., synonyms: [high hit, heavy hit] }
       brooklyn_hit: { definition: The ball crosses over into the 1-2 pocket., synonyms: [brooklyn, crossover, jersey side] }
-      leave: { definition: Pins left standing after the first ball., synonyms: [left standing, pins left, leave] }
+      leave: { definition: Pins left standing after the first ball., synonyms: [left standing, pins left, still standing, leave] }
       spare_conversion: { definition: The second ball knocks down the leave., synonyms: [spare, picks up the spare, converts] }
       messenger_pin: { definition: A pin that rolls across the deck to take out another., synonyms: [messenger, pin across the deck] }
       pins_falling: { definition: Pins in the air or falling., synonyms: [pin action, pins flying, scatter, explosion] }
       pins_settled: { definition: The deck after the pins stop moving., synonyms: [aftermath, pins down, still pins] }
-      release: { definition: The ball leaves the bowler's hand., synonyms: [let go, throw, delivery] }
+      release: { definition: The ball leaves the bowler's hand., synonyms: [let go, lets it go, leaves the hand, leaves your hand, throw, delivery] }
       laydown: { definition: The ball meets the lane past the foul line., synonyms: [lands, touchdown, ball hits the lane] }
       skid: { definition: The first phase, sliding on the oil., synonyms: [skidding, sliding] }
       hook: { definition: The ball turning toward the pocket., synonyms: [hooking, breaking, curve, backend reaction] }
@@ -92,29 +98,33 @@ facets:
       ball_return_arrival: { definition: A ball comes back onto the return., synonyms: [ball comes back] }
       turntable: { definition: A slow full turn around an object., synonyms: [360, spin around, hero turn] }
       walk_to_line: { definition: Walking up to the foul line., synonyms: [the walk, approach steps, stepping up] }
-      idle: { definition: Nothing happening; atmosphere., synonyms: [still, quiet, empty] }
+      sweep: { definition: The sweep bar clears the deck., synonyms: [clearing the deck, sweeping the pins] }
+      gutter_ball: { definition: The ball drops into the gutter., synonyms: [into the channel, gutterball, rolls into the gutter] }
+      idle: { definition: Nothing happening; atmosphere., synonyms: [quiet, empty, nothing happening] }
 
   camera_angle:
     multi: false
     values:
-      pin_cam: { definition: Behind and above the rack, looking back down the lane., synonyms: ["pin's eye view", pin view, from the pins, head on, ball coming at us] }
-      low_front: { definition: Low on the lane in front of the pins., synonyms: [lane level, ground level, low angle] }
+      pin_cam: { definition: Behind and above the rack, looking back down the lane., synonyms: ["pin's eye view", pin view, from the pins, behind the rack, head on, ball coming at us] }
+      low_front: { definition: Low on the lane in front of the pins., synonyms: [lane level, ground level, low angle, low on the lane, from the front] }
       low_side: { definition: Low beside the lane, looking across., synonyms: [side on, profile, from the gutter] }
       side_high: { definition: High at the side, inside the kickbacks, looking down across the deck., synonyms: [replay angle, high side] }
-      overhead: { definition: Straight down from above., synonyms: [top down, bird's eye, from above, aerial] }
+      overhead: { definition: Straight down from above., synonyms: [top down, bird's eye, from above, straight down, aerial] }
       behind_bowler: { definition: Behind the bowler looking down the lane., synonyms: [over the shoulder, from behind] }
       pov_bowler: { definition: The bowler's own eyes., synonyms: [point of view, first person, pov] }
-      elevated_three_quarter: { definition: Raised, at three-quarters to the rack., synonyms: [three quarter, elevated] }
+      elevated_three_quarter: { definition: Raised, at three-quarters to the rack., synonyms: [three quarter, elevated, raised] }
       foul_line_level: { definition: At the foul line, near the surface., synonyms: [on the line] }
       macro: { definition: Extremely close on detail., synonyms: [extreme close up, detail, close detail] }
+      high_behind: { definition: High on the centre line behind the foul line, looking down the lane., synonyms: [above the approach, down the lane from above, centre line, high angle down the lane] }
+      eye_level: { definition: Level at standing eye height, straight on., synonyms: [eye level, straight on, standing height] }
       orbit_close: { definition: Close, circling a subject., synonyms: [circling, around the ball] }
 
   camera_move:
     multi: false
     values:
-      static: { definition: The camera does not move., synonyms: [locked off, still frame, fixed] }
-      push_in: { definition: Moves toward the subject., synonyms: [dolly in, closer, creep in] }
-      pull_out: { definition: Moves away from the subject., synonyms: [dolly out, reveal, widen] }
+      static: { definition: The camera does not move., synonyms: [locked off, locked, still frame, fixed] }
+      push_in: { definition: Moves toward the subject., synonyms: [dolly in, closer, creep in, slow push] }
+      pull_out: { definition: Moves away from the subject., synonyms: [dolly out, pull back, widen] }
       pan_left: { definition: Turns or travels left., synonyms: [slide left] }
       pan_right: { definition: Turns or travels right., synonyms: [slide right] }
       track_with_subject: { definition: Moves with a moving subject., synonyms: [tracking, follow, chase] }
@@ -122,7 +132,7 @@ facets:
       crane_up: { definition: Rises., synonyms: [rise, lift up] }
       crane_down: { definition: Descends., synonyms: [lower, drop down] }
       rack_focus: { definition: Focus shifts from one subject to another., synonyms: [focus pull, pull focus] }
-      walk: { definition: A handheld walking move., synonyms: [walking, steps] }
+      handheld_walk: { definition: A handheld walking move., synonyms: [handheld, walking camera] }
 
   shot_size:
     multi: false
@@ -186,6 +196,7 @@ facets:
       spare: { definition: Leave converted., synonyms: [/] }
       leave: { definition: Pins left after the first ball., synonyms: [open] }
       split: { definition: A leave with a gap., synonyms: [split leave] }
+      gutter: { definition: The ball went into the gutter., synonyms: [ended in the gutter] }
       none: { definition: No shot result shown., synonyms: [] }
 
   mood:
@@ -194,12 +205,12 @@ facets:
       league_night_warm: { definition: Warm house lights, a Tuesday-night league feel., synonyms: [warm, league night, cozy, evening] }
       cosmic: { definition: Blacklight and neon., synonyms: [cosmic bowling, glow, neon, blacklight, party] }
       tournament_tv: { definition: Bright, even, broadcast lighting., synonyms: [tv, broadcast, tournament, pba look, bright] }
-      morning_practice: { definition: Cool, quiet, daylight practice., synonyms: [practice, morning, quiet, empty house] }
+      morning_practice: { definition: Cool, quiet, daylight practice., synonyms: [practice, morning, empty house, daylight] }
 
   story_uses:
     multi: true
     values:
-      establishing: { definition: Sets the place., synonyms: [opening, where we are, intro] }
+      establishing: { definition: Sets the place., synonyms: [where we are, intro, sets the scene] }
       anticipation: { definition: Something is about to happen., synonyms: [build up, wind up, about to] }
       tension: { definition: The held breath before a moment., synonyms: [holding its breath, suspense, waiting, the moment before, quiet before the hit, pressure moment] }
       focus: { definition: Concentration, the mind narrowing., synonyms: [quiet in your head, concentration, locked in, zone] }
@@ -225,7 +236,7 @@ facets:
       bowling_iq: { definition: Bowling IQ explainers., synonyms: [explainer, how to, tips] }
       promo_emotional: { definition: Emotion-led promos (League Night, Ten Frames)., synonyms: [emotional, story promo, warm promo] }
       promo_hype: { definition: Hype edits., synonyms: [hype, highlight, energy] }
-      pro_wiki: { definition: Pro features and wiki films., synonyms: [pro feature, profile, pro story] }
+      pro_wiki: { definition: Pro features and wiki films., synonyms: [pro feature, pro story, pro wiki] }
       history: { definition: Bowling history storytelling., synonyms: [history, the past, origins] }
       this_day: { definition: This Day in Bowling stills., synonyms: [on this day, anniversary] }
       platform_feature: { definition: BowlersNetwork feature videos., synonyms: [app feature, product] }
@@ -233,9 +244,9 @@ facets:
   energy:
     multi: false
     values:
-      "1": { definition: Very calm., synonyms: [still, calm] }
+      "1": { definition: Very calm., synonyms: [calm, very calm] }
       "2": { definition: Calm with movement., synonyms: [gentle] }
-      "3": { definition: Moderate., synonyms: [steady] }
+      "3": { definition: Moderate., synonyms: [moderate] }
       "4": { definition: Energetic., synonyms: [lively] }
       "5": { definition: Peak energy., synonyms: [explosive, peak] }
 
@@ -336,7 +347,7 @@ facets:
       triumphant: { definition: Victory., synonyms: [victory, winning] }
       nostalgic: { definition: Looking back., synonyms: [memories, wistful] }
       playful: { definition: Light and fun., synonyms: [fun, light] }
-      focused: { definition: Concentrated, minimal., synonyms: [minimal, steady] }
+      focused: { definition: Concentrated, minimal., synonyms: [minimal, concentrated] }
       epic: { definition: Big and cinematic., synonyms: [cinematic, huge] }
       quiet: { definition: Very soft., synonyms: [soft, ambient] }
 
