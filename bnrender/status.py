@@ -50,7 +50,9 @@ def clock(timestamp: float, with_day: bool = False) -> str:
 
 
 def format_speed(seconds: float, is_frames: bool, noun: str, estimated: bool) -> str:
-    if seconds < 10:
+    if seconds < 1:
+        value = f'{seconds:.2f} s'
+    elif seconds < 10:
         value = f'{seconds:.1f} s'
     elif seconds < 60:
         value = f'{seconds:.0f} s'

@@ -144,3 +144,31 @@ confirm every item is registered, delete `work/`, remove `.env`'s key, status FI
 
 Job processes run at "above normal" priority (never high or realtime). CPU jobs use up to 11 of 12 threads and about 13
 GB of RAM in total. One GPU job at a time. A GPU out-of-memory failure is retried (up to 3 times), then the item fails.
+
+## Runner notes (how `bnrender` reads the points above)
+
+- **Fingerprint:** SHA-256 of the item's canonical JSON (sorted keys, no spaces; `estimate` left out because it changes
+  nothing made), a newline, and the template version. The template version is the item's or job's `template_version`;
+  for a `blender_item` job without one, the `TEMPLATE_VERSION` constant in `blender/` (the entry script first); else `1`.
+- **Optional job keys:** `threads` and `ram_gb` (per item, for the CPU budget; defaults 1 and 1 GB, or 4 and 4 GB for
+  Blender), `samples`, `unit_name` (the noun in `bn status`), `template_version`, `repeat: daily`, and a job-level
+  `estimate` (`frames`, `seconds_per_frame` or `seconds`) used for items without their own.
+- **Item inputs:** an item may list `sources: [sources/...]`; those files are fetched into `<work>/inputs/` and their
+  paths given in item.json as `input_files`. Scene assets (`sources/assets/`) are mirrored into `<root>/assets/` before
+  any `blender_item` job runs, kept until the node finishes, and never uploaded.
+- **python executor:** the function is called as `function(item: dict, out_dir: Path)`; a `generator` as
+  `generator(job: dict, sources: {folder: [{key, size, url}]})` and returns the item list.
+- **Units and pausing:** a unit is one frame for `blender_item` and one item for `python`. A first pause ends Blender
+  right after its next `PROGRESS` line; a python item runs to its end.
+- **Failures:** out of graphics memory is retried 3 times; any other executor failure once. Failed items are tried again
+  after a code update. Network errors and 5xx on upload retry with backoff for 30 minutes; the item is then marked failed
+  and queued again at the next 15-minute check (its files stay on disk).
+- **Exposure:** luminance uses Rec. 709 weights on the frame's sRGB values; a pixel counts as a clipped highlight when
+  its darkest channel is at least 250 of 255.
+- **`repeat: daily`:** never skipped as already registered. After a run the job waits; after 06:00 local time it runs
+  again if any other item was registered since its last run. When every other job is done it runs once more if behind,
+  and the node finishes only when its last run is current.
+- **Self-update:** `git fetch` then `git merge --ff-only` (the same as `pull --ff-only`), so a version that failed its
+  self-check is not tried again until `main` moves on. A change to `bnrender/` or `catalogue/` code restarts the runner
+  after the units in progress.
+- **Finish:** also deletes `<root>/assets/`; the space freed counts both folders.
