@@ -61,7 +61,7 @@ class ScreenTest(NodeTestCase):
         self.assertEqual(data['current']['title'], 'Pocket strike, pin cam, slow motion')
         self.assertRegex(data['current']['detail'], r'^frame \d+ of 30$')
         self.assertGreater(data['percent'], 0)
-        self.assertTrue(data['time_left'].startswith('about '))
+        self.assertRegex(data['time_left'], r'^(about |under )')
 
         request_pause(self.settings)
         self.assertTrue(wait_for(lambda: self.status(worker)['state_text'] == 'Paused by Mumit Boss'))

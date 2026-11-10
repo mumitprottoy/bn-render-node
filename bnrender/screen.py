@@ -271,7 +271,7 @@ function render(data) {
     setText("now-title", data.state === "finished" ? "Everything is done" : "Nothing at the moment");
     setText("now-detail", "");
   }
-  setText("left", data.time_left || (data.state === "finished" ? "Nothing left" : "Working it out"));
+  setText("left", data.time_left || (data.state === "finished" ? "Nothing left" : (data.state === "working" ? "Working it out" : "Not known yet")));
   setText("around", data.done_around ? "done around " + data.done_around : "");
   setText("today", data.finished_today.toLocaleString("en-US") + " today");
   setText("total", data.finished_total.toLocaleString("en-US") + " in total");
@@ -349,6 +349,11 @@ def _current_item(db: Database, paused: bool) -> dict | None:
     return dict(title=title, detail=detail)
 
 
+def _time_left(seconds: float) -> str:
+    text = format_duration(seconds)
+    return text if text.startswith('under') else f'about {text}'
+
+
 def screen_state(settings: Settings, db: Database, info: dict, now: float | None = None) -> dict:
     """What the screen shows. `info` comes from the running worker: restart_in, finished, gpu_problem."""
     now = time.time() if now is None else now
@@ -370,6 +375,8 @@ def screen_state(settings: Settings, db: Database, info: dict, now: float | None
     else:
         state, text = 'waiting', 'Waiting for new work'
     eta = overview.eta_seconds
+    # a time is only shown while work is under way: a waiting node has no honest estimate
+    show_time = state in ('working', 'restarting') and eta > 0
     today = _start_of_today(now)
     confirmed = db.one(
         "SELECT COUNT(*) AS total, COALESCE(SUM(confirmed_at >= ?), 0) AS today FROM uploads "
@@ -380,8 +387,8 @@ def screen_state(settings: Settings, db: Database, info: dict, now: float | None
         percent=round(overview.percent, 2) if not finished else 100.0,
         units_done=overview.units_done,
         units_total=overview.units_total,
-        time_left=f'about {format_duration(eta)}' if eta > 0 and not finished else str(),
-        done_around=clock(now + eta + 30, with_day=True) if eta > 0 and not finished else str(),
+        time_left=_time_left(eta) if show_time else str(),
+        done_around=clock(now + eta + 30, with_day=True) if show_time else str(),
         current=None if finished else _current_item(db, paused=pause is not None),
         finished_today=int(confirmed['today'] or 0),
         finished_total=int(confirmed['total'] or 0),
