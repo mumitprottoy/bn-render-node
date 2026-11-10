@@ -1,0 +1,22 @@
+# Job 10 (render-node-plan.md section 9.3): the library catalogue and the findability test.
+# Runs again every day (repeat: daily) at the first idle moment after 06:00 local time, if anything was registered since
+# its last run. Items that fail the findability test are held back (published: false) in catalogue.json.
+id: catalogue-nightly
+title: Catalogue and findability
+kind: catalogue
+device: cpu
+priority: 90
+repeat: daily
+after: []
+inputs: []
+models: []
+executor: python
+entry: catalogue.build:build
+items:
+  - asset_id: catalogue/nightly/catalogue
+    title: The library catalogue
+    group: Catalogue
+    description: Every planned and registered item's record with its published flag, the nightly findability report and the demand log.
+    labels: {}
+    params: {}
+    estimate: { seconds: 90 }
