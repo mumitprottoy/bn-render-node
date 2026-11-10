@@ -172,3 +172,8 @@ GB of RAM in total. One GPU job at a time. A GPU out-of-memory failure is retrie
   self-check is not tried again until `main` moves on. A change to `bnrender/` or `catalogue/` code restarts the runner
   after the units in progress.
 - **Finish:** also deletes `<root>/assets/`; the space freed counts both folders.
+- **Screen page:** the runner serves `http://127.0.0.1:8765/` (this PC only) and `/status.json`, built from the same
+  data as `bn status`; on Windows it keeps Edge open in kiosk mode on it, keeps the PC and display awake, and turns the
+  node account's screen saver off.
+- **Restarts (Windows):** after `reboot_every_hours` (6) of uptime, at a clean point (no GPU render, no upload in flight,
+  not paused, nobody else signed in), the screen counts down 60 s and the PC restarts; `bn status` shows the last one.

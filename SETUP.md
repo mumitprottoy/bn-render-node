@@ -1,164 +1,152 @@
 # Render node setup on the Windows PC
 
-For the Claude Code session that sets up BowlersNetwork's render node on Boss's PC. Follow it step by step, in order.
-Do only what this file says. If something fails in a way this file does not list, stop and tell Boss the exact FAIL
-line; do not improvise fixes and do not edit any file in `D:\bn-render\app`.
+## Before you start (Boss)
 
-What the node is: an idle PC that renders the studio library overnight, uploads each finished item through the
-BowlersNetwork API, registers it, and deletes it locally. After setup Boss uses three commands: `bn status`,
-`bn pause`, `bn resume`. Everything else is automatic.
+1. Copy `studio-node-api-key.txt` onto the PC's Desktop, or onto a USB stick plugged into the PC.
+2. Open PowerShell as administrator (right-click the Start button, then "Terminal (Admin)" or "Windows PowerShell
+   (Admin)").
+3. Start Claude Code in that window and say: **read and follow SETUP.md** (it is at
+   `https://github.com/mumitprottoy/bn-render-node/blob/main/SETUP.md`).
 
-## Rules that always apply
+Nothing else is needed. The PC sets itself up and then restarts into the render node.
 
-1. **The API key is secret.** Never open, print, `cat`, `type`, `Get-Content` or otherwise read the key file, and never
-   put the key in a command line, chat message or log. You only ever pass the key file's path to `setup.ps1`, which
-   reads it silently.
-2. Run every command from a terminal that runs **as administrator**.
-3. Your shell may be Git Bash. Every command below is written so it works from Git Bash and from PowerShell: PowerShell
-   commands are wrapped in `powershell.exe -NoProfile -ExecutionPolicy Bypass ...`.
-4. Use a 10-minute timeout for each command. Every step can be run again safely; a step that timed out continues where
-   it stopped when run again.
-5. The work folder is `D:\bn-render`. If Boss says the PC has no D: drive, ask him which drive to use and add
-   `-Root X:\bn-render` (his drive letter) to every `setup.ps1` command, and use that folder everywhere below.
-
-## Before you start: ask Boss for one thing
+## For the Claude Code session
 
 The repository is `https://github.com/mumitprottoy/bn-render-node.git` (public, branch `main`).
 
-1. **The path of the key file** he brought (for example `E:\studio-node-api-key.txt` on a USB stick). Ask for the path
-   only. Do not open the file.
+What the node is: this PC renders BowlersNetwork's studio library, uploads each finished item through the
+BowlersNetwork API and deletes it locally. It runs in its own Windows account, `BNRender`, which signs in by itself and
+shows a full-screen status page.
 
-## Step 0: administrator check
+### Rules
 
-```
-powershell.exe -NoProfile -Command "([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)"
-```
+1. **Do not ask Boss anything.** When a step fails, apply the fix listed below yourself and run the step again. Message
+   Boss only in the cases under "When to stop", with the sentence given there, and then stop.
+2. **The API key is secret.** Never open, print, `cat`, `type` or `Get-Content` the key file or `.env`, and never put
+   the key in a command, message or log. `setup.ps1` finds the key file itself and prints only its first 12 characters.
+3. Your shell may be Git Bash. Every command below works from Git Bash and from PowerShell.
+4. Use a 10-minute timeout for each command. Every step is safe to run again; a step that timed out continues where it
+   stopped when run again.
+5. Do not edit any file of the repository.
 
-Expected: `True`. If `False`: ask Boss to close Claude Code, open PowerShell with right-click, "Run as administrator",
-start Claude Code there, and tell you to continue. Then run Step 0 again.
-
-## Step 1: Git and the repository
+### Step 1: get the setup files
 
 ```
 git --version
 ```
 
-If that fails, install Git, then check again:
+If that fails: `winget install --id Git.Git -e --silent --scope machine --accept-package-agreements --accept-source-agreements`
 
 ```
-winget install --id Git.Git -e --silent --scope machine --accept-package-agreements --accept-source-agreements
+git clone --branch main https://github.com/mumitprottoy/bn-render-node.git C:/Users/Public/bn-render-setup
 ```
 
-Then clone the repository:
+If `C:\Users\Public\bn-render-setup` already exists, run `git -C C:/Users/Public/bn-render-setup pull --ff-only`
+instead.
 
-```
-powershell.exe -NoProfile -Command "New-Item -ItemType Directory -Force -Path D:\bn-render | Out-Null"
-git clone --branch main https://github.com/mumitprottoy/bn-render-node.git D:/bn-render/app
-```
-
-Expected: `Cloning into 'D:/bn-render/app'...` and no error. If `D:\bn-render\app` already exists and
-`git -C D:/bn-render/app status` works, skip the clone.
-
-## Step 2: run setup.ps1 one step at a time
-
-Run each command below in order. Each prints one `PASS` line (sometimes with notes) when it worked. On `FAIL`, use the
-table under the step; then run the same step again.
+### Step 2: run setup.ps1 one step at a time
 
 The command for a step (replace `<step>`):
 
 ```
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\bn-render\app\setup.ps1 -Step <step>
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\Public\bn-render-setup\setup.ps1 -Step <step>
 ```
+
+Run the steps in this order. Each prints one `PASS` line when it worked (sometimes with notes above it).
 
 | Order | Step | Expected PASS line (roughly) | Takes |
 |---|---|---|---|
-| 1 | `admin` | `PASS  admin      Running as administrator (...)` | seconds |
+| 1 | `admin` | `PASS  admin      Running as administrator (...); work folder D:\bn-render.` | seconds |
 | 2 | `folders` | `PASS  folders    D:\bn-render is ready (N GB free on D:).` | seconds |
 | 3 | `winget` | `PASS  winget     winget v1.x` | seconds |
 | 4 | `git` | `PASS  git        git version 2.x` | seconds |
-| 5 | `python` | `PASS  python     Python 3.12.x at C:\Program Files\Python312\python.exe` | 1 to 3 min |
-| 6 | `ffmpeg` | `PASS  ffmpeg     ffmpeg and ffprobe with libx264 in D:\bn-render\tools\ffmpeg\bin` | 1 to 3 min |
-| 7 | `blender` | `PASS  blender    Blender 5.2.3 installed in D:\bn-render\tools\blender (size and SHA-256 verified)` | 2 to 15 min |
-| 8 | `repo` | `PASS  repo       D:\bn-render\app at <commit> <message>` | seconds |
-| 9 | `venv` | `PASS  venv       Python environment ready in D:\bn-render\venv` | 1 to 3 min |
-| 10 | `key` | `PASS  key        The API key is saved in D:\bn-render\.env (not shown).` | seconds |
-| 11 | `power` | `PASS  power      The PC never sleeps or hibernates on mains power.` | seconds |
-| 12 | `path` | `PASS  path       D:\bn-render\app\bin is on the user PATH; ...` | seconds |
-| 13 | `selfcheck` | a list of `PASS` / `SKIP` lines, then `PASS  selfcheck  Everything the node needs works in this window.` | 1 to 3 min |
-| 14 | `task` | `PASS  task       Task 'BN Render Node' starts the node ...` | 1 to 5 min |
-| 15 | `start` | the `bn status` screen, then `PASS  start      The render node is running.` | 30 s |
+| 5 | `python` | `PASS  python     Python 3.12.x at ...` | 1 to 3 min |
+| 6 | `ffmpeg` | `PASS  ffmpeg     ffmpeg and ffprobe with libx264 in ...\tools\ffmpeg\bin` | 1 to 3 min |
+| 7 | `blender` | `PASS  blender    Blender 5.2.3 installed in ...\tools\blender (size and SHA-256 verified)` | 2 to 15 min |
+| 8 | `repo` | `PASS  repo       ...\app at <commit> <message>` | seconds |
+| 9 | `venv` | `PASS  venv       Python environment ready in ...\venv` | 1 to 3 min |
+| 10 | `account` | `PASS  account    Standard account BNRender signs in automatically (...)` | seconds |
+| 11 | `key` | `PASS  key        saved (prefix bn_xxxxxxxxx...)` | seconds |
+| 12 | `access` | `PASS  access     BNRender can change ...; the key is readable by BNRender and administrators only.` | under 2 min |
+| 13 | `power` | `PASS  power      On mains power the PC never sleeps or hibernates, ...` | seconds |
+| 14 | `path` | `PASS  path       ...\app\bin is on the machine PATH: ...` | seconds |
+| 15 | `selfcheck` | a list of `PASS` / `SKIP` lines, then `PASS  selfcheck  Everything the node needs works.` | 1 to 5 min |
+| 16 | `task` | `PASS  task       Task 'BN Render Node' starts the node when BNRender signs in (...)` | seconds |
 
-The `key` step is different: give it the key file's path.
+The work folder (`D:\bn-render` above) is chosen by `setup.ps1` itself: D: when it has 50 GB free, otherwise the fixed
+drive with the most free space. Its PASS lines show which.
 
-```
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File D:\bn-render\app\setup.ps1 -Step key -KeyFile "<path Boss gave>"
-```
+### Fixes to apply yourself
 
-### What to do on FAIL
+Apply the fix, then run the same step again. If a step still fails after three tries, stop and tell Boss its FAIL line.
 
-| Step | FAIL says | Do this |
+| Step | FAIL says | Fix |
 |---|---|---|
-| `admin` | not running as administrator | Go back to Step 0. |
-| `folders` | Drive D: is not there | Ask Boss which drive to use; see rule 5. |
-| `folders` | Only N GB free | Tell Boss how much is free; at least 60 GB is needed. Wait for him to free space. |
-| `winget` | winget is missing | Ask Boss to install "App Installer" from the Microsoft Store, then run the step again. |
-| `git`, `python`, `ffmpeg` | did not install | Run the `winget install` command the FAIL line shows and read its output. If it says no package was found, run `winget source reset --force`, then the step again. If it still fails, stop and tell Boss. |
-| `ffmpeg` | has no libx264 encoder | Run `powershell.exe -NoProfile -Command "Remove-Item -Recurse -Force D:\bn-render\tools\ffmpeg"`, then the step again. |
-| `blender` | The download failed | Run the step again; the download continues where it stopped. |
-| `blender` | SHA-256 mismatch, or wrong size | The bad file was deleted. Run the step once more. If it fails the same way again, stop and tell Boss: do not use any other Blender download. |
-| `repo` | git pull failed / git clone failed | Check the network and the URL with Boss, then run the step again. |
-| `venv` | pip install failed | Run the step again (network). If it fails twice, stop and tell Boss the FAIL line. |
-| `key` | The key file ... is not there | Ask Boss for the correct path. |
-| `key` | No key was given | Ask Boss for the path again. Or ask Boss to run, in his own PowerShell window opened as administrator, `powershell -ExecutionPolicy Bypass -File D:\bn-render\app\setup.ps1 -Step key` and paste the key at the hidden prompt. Then run the step yourself: it must say the key is already saved. |
-| `power` | powercfg ... failed | Stop and tell Boss the FAIL line. |
-| `path` | The bn command is not found | Stop and tell Boss the FAIL line. |
-| `selfcheck` | see the next table | Fix the first FAIL line listed by the self-check, then run the step again. |
-| `task` | any | Stop and tell Boss the FAIL line. |
-| `start` | did not report RUNNING | Show Boss the last 40 lines of `D:\bn-render\state\log.txt` (it never contains the key): `powershell.exe -NoProfile -Command "Get-Content D:\bn-render\state\log.txt -Tail 40"`. Stop. |
+| `git`, `python`, `ffmpeg` | did not install | Run `winget source reset --force`, then the step again. |
+| `blender` | The download stopped | Run the step again; the download continues where it stopped. |
+| `blender` | The download is N bytes | Run the step again. |
+| `blender` | SHA-256 mismatch | Run the step once more. A second mismatch: see "When to stop". |
+| `repo` | git pull failed / git clone failed | Wait one minute, then run the step again. |
+| `venv` | pip install failed | Run the step again. |
+| `account` | could not be downloaded / not validly signed / was not set | Run the step again. |
+| `key` | Run the account step first | Run the `account` step, then `key`. |
+| `selfcheck` | `FAIL  api        The API could not be reached` | Wait one minute, then run `selfcheck` again. |
+| `selfcheck` | `FAIL  assets` | Run `selfcheck` again. |
+| `selfcheck` | `FAIL  blender` | Run the `blender` step, then `selfcheck`. |
+| `selfcheck` | `FAIL  render     blender/render_item.py is missing` | Run the `repo` step, then `selfcheck`. |
+| `selfcheck` | `FAIL  ffmpeg`, `FAIL  ffprobe` or `FAIL  x264` | Run the `ffmpeg` step, then `selfcheck`. |
+| `selfcheck` | `FAIL  python`, `FAIL  packages` or `FAIL  psutil` | Run the `venv` step, then `selfcheck`. |
+| `selfcheck` | `FAIL  api        There is no BN_API_KEY in .env` | Run the `key` step, then `selfcheck`. |
+| `selfcheck` | only `gpu` failed | Nothing to do: the step installs the AMD driver through winget by itself. If no driver is available, see "When to stop". |
+| `power`, `path`, `access`, `task` | anything | Run the step again. |
 
-### Self-check FAIL lines
+### When to stop
 
-| Line starts with | Meaning | Do this |
-|---|---|---|
-| `FAIL  api        The API key was refused` | the key is wrong or was revoked | Tell Boss. He needs a new key from the server (the Mac session runs `manage.py studio_node_key create`). Remove the old one with `powershell.exe -NoProfile -Command "(Get-Content D:\bn-render\.env) | Where-Object { $_ -notmatch '^BN_API_KEY=' } | Set-Content D:\bn-render\.env"` (this does not show the key), then run the `key` step with the new file. |
-| `FAIL  api        The API could not be reached` | network or Cloudflare | Check the internet connection with Boss, then run `selfcheck` again. |
-| `FAIL  api        There is no BN_API_KEY in .env` | the key step was skipped | Run the `key` step. |
-| `FAIL  assets` | scene textures could not be downloaded | Run `selfcheck` again (network). |
-| `FAIL  blender` | Blender does not run or is the wrong version | Run the `blender` step again. |
-| `FAIL  render     blender/render_item.py is missing` | the repo is older than the setup expects | Run the `repo` step, then `selfcheck`. If it is still missing, stop and tell Boss. |
-| `FAIL  render     The test render failed` | Blender could not render the test scene | Stop and tell Boss the full line. |
-| `FAIL  gpu        Blender sees no HIP graphics device` | the AMD driver is missing or too old | Ask Boss to install the current AMD Software: Adrenalin Edition driver from amd.com for the Radeon RX 6600 and restart the PC. Then run `selfcheck` again. Do not continue until `gpu` passes: rendering on the CPU would take weeks. |
-| `FAIL  jobs` or `FAIL  labels` | a job file in the repo has a problem | Stop and tell Boss the lines (the Mac side fixes job files). |
-| `FAIL  ffmpeg`, `FAIL  ffprobe`, `FAIL  x264` | ffmpeg is missing or incomplete | Delete `D:\bn-render\tools\ffmpeg` as in the ffmpeg row above, run the `ffmpeg` step, then `selfcheck`. |
-| `FAIL  disk` | less than 5 GB free | Tell Boss. |
-| `FAIL  python`, `FAIL  packages`, `FAIL  psutil` | the Python environment is incomplete | Run the `venv` step, then `selfcheck`. |
+These are the only times you message Boss. Send the sentence, then stop.
 
-### About the `task` step
+| Situation | Tell Boss |
+|---|---|
+| `admin` fails | Please start Claude Code from a PowerShell window opened as administrator, then say: read and follow SETUP.md. |
+| A FAIL line says no drive has 50 GB free | This PC has no drive with 50 GB free for the render node. |
+| `winget` fails | This PC has no Windows package manager; please install App Installer from the Microsoft Store. |
+| `key` says the key file was not found, or holds no key | I could not find studio-node-api-key.txt; please put it on the Desktop and tell me to continue. |
+| `selfcheck` says `The API key was refused` | The API key in studio-node-api-key.txt was refused; a new key is needed from the server. |
+| `selfcheck` says no AMD driver is available through winget | Blender cannot use the graphics card here; please install the AMD Adrenalin driver for the Radeon RX 6600. |
+| `blender` reports a SHA-256 mismatch twice | The Blender download failed its checksum twice, so I stopped for safety. |
+| `selfcheck` fails on `jobs`, `labels` or `disk`, or any step fails three times | Setup stopped at step `<step>`: `<the FAIL line>` |
 
-It tests the graphics card the way the node runs at boot (before anyone signs in). Two outcomes are both a PASS:
+### Step 3: the restart (last)
 
-- **"starts the node at boot (before sign-in) and at sign-in"**: the node restarts by itself after a reboot or power cut.
-- **"starts the node when <user> signs in"**, with a note that the graphics card cannot be used before sign-in: tell
-  Boss that after a power cut the node continues once he signs in to Windows. Do not set up automatic sign-in yourself;
-  if Boss wants it, that is his decision.
+When every step above passed, tell Boss exactly this one line:
 
-## Step 3: confirm and sign off
+> Setup is done: the PC restarts in 60 seconds into the BNRender account and shows the BowlersNetwork status screen.
+
+Then run the last step:
 
 ```
-cmd.exe /c D:\bn-render\app\bin\bn.cmd status
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\Public\bn-render-setup\setup.ps1 -Step restart
 ```
 
-Expected: the first line reads `BowlersNetwork render node` followed by `RUNNING since HH:MM`. The job list may show
-jobs `waiting` or `queued` for the first minutes while the node fetches its scene files; that is normal.
+Expected: `PASS  restart    Restart scheduled in 60 s.` The restart ends this session; you are done.
 
-When `RUNNING` shows, the setup is complete. Tell Boss, in these words or close to them:
+What happens next, with no one touching the PC: Windows signs in to `BNRender` by itself, the scheduled task starts the
+runner, the runner checks the graphics card in that session, opens the full-screen status page in Microsoft Edge, and
+starts rendering.
 
-> The render node is set up and running. In any new PowerShell window:
-> `bn status` shows what is done, what is left and when it will finish;
-> `bn pause` finishes the frame in progress and pauses (run it twice to stop at once);
-> `bn resume` carries on.
-> It starts by itself after a restart, updates itself, and when every job is done it deletes its work files and its
-> key. You can now remove the key file from the USB stick or wherever you brought it.
+## For Boss, after the setup
 
-Then stop. Do not run `python -m bnrender run` yourself (the scheduled task runs it), and do not delete or edit
-`D:\bn-render\.env`.
+- **The screen** shows the progress, the item being made, the time left, and "Working", "Paused by Mumit Boss",
+  "Restarting in N s" or "Finished".
+- **To use the PC:** press Ctrl+Alt+Del, choose "Switch user", and sign in to your own account (its password is
+  unchanged). The node keeps working in its own account in the background.
+- **The three commands work from any account:** press Win+R, type `powershell`, press Enter, then `bn status`,
+  `bn pause` or `bn resume`. If Win+R does not open over the full-screen page, press Ctrl+Alt+Del, open Task Manager,
+  choose "Run new task", and type `powershell`.
+- `bn pause` finishes the frame in progress and pauses (the screen says "Paused by Mumit Boss"); run it twice to stop at
+  once. `bn resume` carries on.
+- **Restarts:** the PC restarts itself about every 6 hours at a clean moment, never while paused and never while someone
+  else is signed in, and comes back to the render node by itself. `bn status` shows the last restart.
+- If `bn status` says GPU jobs are "waiting for the graphics card", the AMD driver needs attention.
+- When every job is done the screen says "Finished": the node deletes its work files and removes its key.
+- The key file can now be deleted from the Desktop or the USB stick. The folder `C:\Users\Public\bn-render-setup` is
+  only the setup copy and can be deleted too.

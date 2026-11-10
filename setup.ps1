@@ -1,20 +1,22 @@
 <#
-setup.ps1: one-time setup of the BowlersNetwork render node on this Windows PC.
+setup.ps1: one-time setup of the BowlersNetwork render node on this Windows PC. No questions are asked.
 
-Run in a PowerShell window opened as administrator, after the repo is cloned to D:\bn-render\app:
+Run in a PowerShell window opened as administrator, one step at a time (each step is short and safe to run again):
 
-    powershell -NoProfile -ExecutionPolicy Bypass -File D:\bn-render\app\setup.ps1 -KeyFile <path to the key file>
+    powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\Public\bn-render-setup\setup.ps1 -Step <name>
 
-Every step checks what is already done, so running it again is safe. Each step prints one PASS or FAIL line and the
-script stops at the first FAIL. One step alone: -Step <name>. Steps, in order:
-    admin, folders, winget, git, python, ffmpeg, blender, repo, venv, key, power, path, selfcheck, task, start
+Steps, in order:
+    admin, folders, winget, git, python, ffmpeg, blender, repo, venv, account, key, access, power, path, selfcheck,
+    task, restart
 
-The API key is the node's only secret. It is read from -KeyFile (or, when Boss runs `-Step key` himself, from a hidden
-prompt), written to D:\bn-render\.env, and never printed.
+Each step prints one PASS or FAIL line. The work folder is chosen automatically: an existing D:\bn-render (or
+X:\bn-render), else D: when it has 50 GB free, else the fixed drive with the most free space. The API key file
+(studio-node-api-key.txt) is found on the Desktop, in Downloads or Documents, or at the top of any drive; the key is
+never printed (only its first 12 characters).
 #>
 param(
-    [string]$Root = 'D:\bn-render',
-    [string]$RepoUrl = '',
+    [string]$Root = '',
+    [string]$RepoUrl = 'https://github.com/mumitprottoy/bn-render-node.git',
     [string]$KeyFile = '',
     [string]$Step = ''
 )
@@ -23,24 +25,20 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 $TaskName = 'BN Render Node'
-$CheckTaskName = 'BN Render Node check'
+$OldCheckTaskName = 'BN Render Node check'
+$NodeUser = 'BNRender'
+$KeyFileName = 'studio-node-api-key.txt'
+$AutologonUrl = 'https://live.sysinternals.com/Autologon64.exe'
 $BlenderUrl = 'https://download.blender.org/release/Blender5.2/blender-5.2.3-windows-x64.zip'
 $BlenderZipName = 'blender-5.2.3-windows-x64.zip'
 $BlenderSize = 405839452
 $BlenderSha256 = '723f08a4401502561eb763cdeacf8745b31e5f3f154d287d3830d97cf75dc2fb'
 $BlenderVersion = 'Blender 5.2.3'
-$MinFreeGB = 60
-$CheckTaskMinutes = 15
-
-$App = Join-Path $Root 'app'
-$Tools = Join-Path $Root 'tools'
-$State = Join-Path $Root 'state'
-$Downloads = Join-Path $Root 'downloads'
-$Venv = Join-Path $Root 'venv'
-$VenvPython = Join-Path $Venv 'Scripts\python.exe'
-$VenvPythonW = Join-Path $Venv 'Scripts\pythonw.exe'
-$EnvFile = Join-Path $Root '.env'
-$UserId = "$env:USERDOMAIN\$env:USERNAME"
+$AmdDriverId = 'AMD.AMDSoftwareCloudEdition'
+$MinFreeGB = 50
+$AdministratorsSid = '*S-1-5-32-544'
+$UsersSid = 'S-1-5-32-545'
+$AuthenticatedUsersSid = '*S-1-5-11'
 
 function Report-Pass([string]$Name, [string]$Detail) {
     Write-Host ('PASS  {0,-10} {1}' -f $Name, $Detail) -ForegroundColor Green
@@ -54,6 +52,35 @@ function Report-Fail([string]$Name, [string]$Detail) {
 function Report-Note([string]$Text) {
     Write-Host "      $Text"
 }
+
+function Resolve-NodeRoot {
+    if ($Root) { return $Root }
+    $disks = @(Get-CimInstance -ClassName Win32_LogicalDisk -Filter 'DriveType=3')
+    foreach ($disk in $disks) {
+        $candidate = "$($disk.DeviceID)\bn-render"
+        if (Test-Path (Join-Path $candidate 'app\.git')) { return $candidate }
+    }
+    $roomy = @($disks | Where-Object { $_.FreeSpace -ge ($MinFreeGB * 1GB) })
+    if ($roomy | Where-Object { $_.DeviceID -eq 'D:' }) { return 'D:\bn-render' }
+    # Any other fixed drive with room, the one with the most free space; the Windows drive only as the last choice.
+    $pick = $roomy | Sort-Object -Property @{ Expression = { $_.DeviceID -eq $env:SystemDrive } }, @{ Expression = { $_.FreeSpace }; Descending = $true } | Select-Object -First 1
+    if ($pick) { return "$($pick.DeviceID)\bn-render" }
+    return $null
+}
+
+$Root = Resolve-NodeRoot
+if (-not $Root) {
+    Report-Fail 'folders' "No drive on this PC has $MinFreeGB GB free for the render node."
+}
+$App = Join-Path $Root 'app'
+$Tools = Join-Path $Root 'tools'
+$State = Join-Path $Root 'state'
+$Downloads = Join-Path $Root 'downloads'
+$Venv = Join-Path $Root 'venv'
+$VenvPython = Join-Path $Venv 'Scripts\python.exe'
+$VenvPythonW = Join-Path $Venv 'Scripts\pythonw.exe'
+$EnvFile = Join-Path $Root '.env'
+$NodeAccount = "$env:COMPUTERNAME\$NodeUser"
 
 function Update-SessionPath {
     $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -116,9 +143,72 @@ function Find-FfmpegFolder {
     return $null
 }
 
-function Test-KeyPresent {
-    if (-not (Test-Path $EnvFile)) { return $false }
-    return [bool](Select-String -Path $EnvFile -Pattern '^\s*BN_API_KEY\s*=\s*\S' -Quiet)
+function Get-KeyPrefix([string]$Key) {
+    if ($Key.Length -le 12) { return $Key }
+    return $Key.Substring(0, 12)
+}
+
+function Find-KeyFile {
+    # Desktop, Downloads, Documents, OneDrive\Desktop, the public Desktop, then the top of every fixed and removable
+    # drive and one folder below it. The first match wins.
+    $places = @(
+        [Environment]::GetFolderPath('Desktop'),
+        (Join-Path $env:USERPROFILE 'Downloads'),
+        [Environment]::GetFolderPath('MyDocuments'),
+        (Join-Path $env:USERPROFILE 'OneDrive\Desktop'),
+        (Join-Path $env:PUBLIC 'Desktop')
+    )
+    if ($env:OneDrive) { $places += (Join-Path $env:OneDrive 'Desktop') }
+    foreach ($place in $places) {
+        if ($place -and (Test-Path (Join-Path $place $KeyFileName))) { return (Join-Path $place $KeyFileName) }
+    }
+    $drives = @(Get-CimInstance -ClassName Win32_LogicalDisk | Where-Object { $_.DriveType -in @(2, 3) } | Sort-Object DeviceID)
+    foreach ($drive in $drives) {
+        $top = "$($drive.DeviceID)\"
+        if (Test-Path (Join-Path $top $KeyFileName)) { return (Join-Path $top $KeyFileName) }
+    }
+    foreach ($drive in $drives) {
+        $top = "$($drive.DeviceID)\"
+        foreach ($folder in @(Get-ChildItem -Path $top -Directory -Force -ErrorAction SilentlyContinue)) {
+            $candidate = Join-Path $folder.FullName $KeyFileName
+            if (Test-Path $candidate) { return $candidate }
+        }
+    }
+    return $null
+}
+
+function Read-KeyFromFile([string]$Path) {
+    $text = Get-Content -Raw -Path $Path
+    $match = [regex]::Match($text, 'bn_[A-Za-z0-9_\-]{8,}')
+    if ($match.Success) { return $match.Value }
+    if ($text -and ($text.Trim() -notmatch '\s')) { return $text.Trim() }
+    return $null
+}
+
+function Get-SavedKey {
+    if (-not (Test-Path $EnvFile)) { return $null }
+    $line = Get-Content -Path $EnvFile | Where-Object { $_ -match '^\s*BN_API_KEY\s*=\s*\S' } | Select-Object -First 1
+    if (-not $line) { return $null }
+    return ($line -split '=', 2)[1].Trim()
+}
+
+function Protect-EnvFile {
+    # Only the node's account and administrators can read the key.
+    $reset = Invoke-Native 'icacls.exe' @($EnvFile, '/reset')
+    $narrow = Invoke-Native 'icacls.exe' @($EnvFile, '/inheritance:r', '/grant:r', "${NodeAccount}:(M)", "${AdministratorsSid}:(F)")
+    if ($reset.Code -ne 0 -or $narrow.Code -ne 0) { Report-Fail 'key' "The key file's permissions could not be set: $(Get-LastLines ($reset.Output + $narrow.Output) 1)" }
+}
+
+function New-NodePassword {
+    # 64 symbols, so every random byte maps evenly; none of them needs quoting on a command line.
+    $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789-_.=+@#'
+    $random = [Security.Cryptography.RandomNumberGenerator]::Create()
+    $bytes = New-Object byte[] 40
+    do {
+        $random.GetBytes($bytes)
+        $password = -join ($bytes | ForEach-Object { $alphabet[$_ % 64] })
+    } until ($password -cmatch '[A-Z]' -and $password -cmatch '[a-z]' -and $password -match '[0-9]' -and $password -match '[-_.=+@#]')
+    return $password
 }
 
 function Invoke-Bnrender([string[]]$Arguments) {
@@ -132,23 +222,25 @@ function Invoke-Bnrender([string[]]$Arguments) {
     }
 }
 
+function Get-FailedChecks([string]$Report) {
+    if (-not (Test-Path $Report)) { return @('selfcheck') }
+    $parsed = Get-Content -Raw -Path $Report | ConvertFrom-Json
+    return @($parsed.checks | Where-Object { $_.status -eq 'FAIL' } | ForEach-Object { $_.name })
+}
+
 # The steps
 
 function Step-Admin {
     $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
     if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-        Report-Fail 'admin' 'PowerShell is not running as administrator. Open PowerShell with "Run as administrator" and run this again.'
+        Report-Fail 'admin' 'Claude Code must be started from a PowerShell window opened as administrator.'
     }
-    Report-Pass 'admin' "Running as administrator ($UserId)."
+    Report-Pass 'admin' "Running as administrator ($env:USERDOMAIN\$env:USERNAME); work folder $Root."
 }
 
 function Step-Folders {
     $drive = Split-Path -Qualifier $Root
-    if (-not (Test-Path "$drive\")) { Report-Fail 'folders' "Drive $drive is not there." }
     $free = (Get-PSDrive -Name $drive.TrimEnd(':')).Free
-    if ($free -lt ($MinFreeGB * 1GB)) {
-        Report-Fail 'folders' ("Only {0:N0} GB free on {1}; at least {2} GB is needed." -f ($free / 1GB), $drive, $MinFreeGB)
-    }
     foreach ($folder in @($Root, $Tools, $State, $Downloads, (Join-Path $Root 'work'), (Join-Path $Root 'models'), (Join-Path $Root 'assets'))) {
         New-Item -ItemType Directory -Force -Path $folder | Out-Null
     }
@@ -158,8 +250,17 @@ function Step-Folders {
 function Step-Winget {
     $result = Invoke-Native 'winget' @('--version')
     if ($result.Code -ne 0) {
-        Report-Fail 'winget' 'winget is missing. Install "App Installer" from the Microsoft Store, then run this again.'
+        Report-Note 'Registering the Windows package manager (App Installer)...'
+        try {
+            Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe -ErrorAction Stop
+        } catch {
+            Report-Note "App Installer could not be registered: $($_.Exception.Message)"
+        }
+        Update-SessionPath
+        $result = Invoke-Native 'winget' @('--version')
     }
+    if ($result.Code -ne 0) { Report-Fail 'winget' 'winget is not available on this PC.' }
+    Invoke-Native 'winget' @('source', 'update') | Out-Null
     Report-Pass 'winget' "winget $($result.Output.Trim())"
 }
 
@@ -170,7 +271,7 @@ function Step-Git {
         Report-Note 'Installing Git...'
         Install-WithWinget 'Git.Git' @('--scope', 'machine') | Out-Null
         $result = Invoke-Native 'git' @('--version')
-        if ($result.Code -ne 0) { Report-Fail 'git' 'Git did not install. Run: winget install --id Git.Git -e   then run this again.' }
+        if ($result.Code -ne 0) { Report-Fail 'git' 'Git did not install.' }
     }
     Report-Pass 'git' $result.Output.Trim()
 }
@@ -182,7 +283,11 @@ function Step-Python {
         Install-WithWinget 'Python.Python.3.12' @('--scope', 'machine') | Out-Null
         $python = Find-Python312
     }
-    if (-not $python) { Report-Fail 'python' 'Python 3.12 did not install. Run: winget install --id Python.Python.3.12 -e --scope machine   then run this again.' }
+    if (-not $python) {
+        Install-WithWinget 'Python.Python.3.12' @() | Out-Null
+        $python = Find-Python312
+    }
+    if (-not $python) { Report-Fail 'python' 'Python 3.12 did not install.' }
     $version = Invoke-Native $python @('--version')
     if ($version.Output -notmatch 'Python 3\.12\.') { Report-Fail 'python' "Found $($version.Output.Trim()) at $python; 3.12 is needed." }
     Report-Pass 'python' "$($version.Output.Trim()) at $python"
@@ -191,20 +296,25 @@ function Step-Python {
 function Step-Ffmpeg {
     $target = Join-Path $Tools 'ffmpeg\bin'
     $ffmpeg = Join-Path $target 'ffmpeg.exe'
+    if (Test-Path $ffmpeg) {
+        $encoders = Invoke-Native $ffmpeg @('-hide_banner', '-encoders')
+        if ($encoders.Output -notmatch 'libx264') { Remove-Item -Recurse -Force (Join-Path $Tools 'ffmpeg') }
+    }
     if (-not (Test-Path $ffmpeg)) {
         $found = Find-FfmpegFolder
-        if (-not $found) {
-            Report-Note 'Installing ffmpeg (full build)...'
-            Install-WithWinget 'Gyan.FFmpeg' @() | Out-Null
+        foreach ($id in @('Gyan.FFmpeg', 'Gyan.FFmpeg.Essentials')) {
+            if ($found) { break }
+            Report-Note "Installing ffmpeg ($id)..."
+            Install-WithWinget $id @() | Out-Null
             $found = Find-FfmpegFolder
         }
-        if (-not $found) { Report-Fail 'ffmpeg' 'ffmpeg did not install. Run: winget install --id Gyan.FFmpeg -e   then run this again.' }
+        if (-not $found) { Report-Fail 'ffmpeg' 'ffmpeg did not install.' }
         New-Item -ItemType Directory -Force -Path $target | Out-Null
         Copy-Item -Path (Join-Path $found 'ffmpeg.exe') -Destination $target -Force
         Copy-Item -Path (Join-Path $found 'ffprobe.exe') -Destination $target -Force
     }
     $encoders = Invoke-Native $ffmpeg @('-hide_banner', '-encoders')
-    if ($encoders.Output -notmatch 'libx264') { Report-Fail 'ffmpeg' "The ffmpeg in $target has no libx264 encoder. Delete $target and run this again." }
+    if ($encoders.Output -notmatch 'libx264') { Report-Fail 'ffmpeg' "The ffmpeg in $target has no libx264 encoder." }
     Report-Pass 'ffmpeg' "ffmpeg and ffprobe with libx264 in $target"
 }
 
@@ -226,12 +336,12 @@ function Step-Blender {
     if (-not (Test-Path $zip) -or ((Get-Item $zip).Length -ne $BlenderSize)) {
         Report-Note "Downloading $BlenderUrl (about 390 MB)..."
         $download = Invoke-Native 'curl.exe' @('-L', '--fail', '--silent', '--show-error', '--retry', '5', '--retry-delay', '5', '-C', '-', '-o', $zip, $BlenderUrl)
-        if ($download.Code -ne 0) { Report-Fail 'blender' "The download failed: $(Get-LastLines $download.Output 2). Run this again to continue it." }
+        if ($download.Code -ne 0) { Report-Fail 'blender' "The download stopped: $(Get-LastLines $download.Output 2). Run this step again to continue it." }
     }
     $size = (Get-Item $zip).Length
     if ($size -ne $BlenderSize) {
         Remove-Item -Force $zip
-        Report-Fail 'blender' "The download is $size bytes, not $BlenderSize. It was deleted; run this again."
+        Report-Fail 'blender' "The download is $size bytes, not $BlenderSize. It was deleted; run this step again."
     }
     $hash = (Get-FileHash -Algorithm SHA256 -Path $zip).Hash.ToLower()
     if ($hash -ne $BlenderSha256) {
@@ -245,7 +355,7 @@ function Step-Blender {
     $extract = Invoke-Native 'tar.exe' @('-xf', $zip, '-C', $staging)
     if ($extract.Code -ne 0) { Expand-Archive -Path $zip -DestinationPath $staging -Force }
     $inner = Get-ChildItem -Path $staging -Directory | Select-Object -First 1
-    if (-not $inner) { Report-Fail 'blender' 'The Blender archive was empty after extracting.' }
+    if (-not $inner) { Report-Fail 'blender' 'The Blender archive was empty after extracting; run this step again.' }
     Move-Item -Path $inner.FullName -Destination $blenderDir
     Remove-Item -Recurse -Force $staging
     $installed = Invoke-Native $blenderExe @('--version')
@@ -258,17 +368,15 @@ function Step-Blender {
 
 function Step-Repo {
     if (Test-Path (Join-Path $App '.git')) {
-        $pull = Invoke-Native 'git' @('-C', $App, 'pull', '--ff-only')
+        $pull = Invoke-Native 'git' @('-c', "safe.directory=$($App -replace '\\', '/')", '-C', $App, 'pull', '--ff-only')
         if ($pull.Code -ne 0) { Report-Fail 'repo' "git pull failed in ${App}: $(Get-LastLines $pull.Output 2)" }
-    } elseif ($RepoUrl) {
-        if (Test-Path $App) { Report-Fail 'repo' "$App exists but is not a git clone. Move it away, then run this again." }
+    } else {
+        if (Test-Path $App) { Remove-Item -Recurse -Force $App }
         $clone = Invoke-Native 'git' @('clone', '--branch', 'main', $RepoUrl, $App)
         if ($clone.Code -ne 0) { Report-Fail 'repo' "git clone failed: $(Get-LastLines $clone.Output 2)" }
-    } else {
-        Report-Fail 'repo' "$App is not a clone yet. Run again with -RepoUrl <the repository URL>."
     }
-    if (-not (Test-Path (Join-Path $App 'bnrender\__main__.py'))) { Report-Fail 'repo' "$App has no bnrender package; is it the right repository?" }
-    $head = Invoke-Native 'git' @('-C', $App, 'log', '-1', '--format=%h %s')
+    if (-not (Test-Path (Join-Path $App 'bnrender\__main__.py'))) { Report-Fail 'repo' "$App has no bnrender package." }
+    $head = Invoke-Native 'git' @('-c', "safe.directory=$($App -replace '\\', '/')", '-C', $App, 'log', '-1', '--format=%h %s')
     Report-Pass 'repo' "$App at $($head.Output.Trim())"
 }
 
@@ -280,160 +388,215 @@ function Step-Venv {
         if ($create.Code -ne 0) { Report-Fail 'venv' "The Python environment could not be made: $(Get-LastLines $create.Output 2)" }
     }
     Report-Note 'Installing the Python packages...'
-    $install = Invoke-Native $VenvPython @('-m', 'pip', 'install', '--disable-pip-version-check', '--quiet', '-r', (Join-Path $App 'requirements.txt'))
+    $requirements = Join-Path $App 'requirements.txt'
+    $install = $null
+    foreach ($attempt in 1..3) {
+        $install = Invoke-Native $VenvPython @('-m', 'pip', 'install', '--disable-pip-version-check', '--quiet', '-r', $requirements)
+        if ($install.Code -eq 0) { break }
+        Invoke-Native $VenvPython @('-m', 'pip', 'install', '--disable-pip-version-check', '--quiet', '--upgrade', 'pip') | Out-Null
+        Start-Sleep -Seconds 10
+    }
     if ($install.Code -ne 0) { Report-Fail 'venv' "pip install failed: $(Get-LastLines $install.Output 3)" }
     $imports = Invoke-Native $VenvPython @('-c', 'import yaml, PIL, numpy, psutil; print("ok")')
     if ($imports.Output.Trim() -ne 'ok') { Report-Fail 'venv' "The packages do not import: $(Get-LastLines $imports.Output 2)" }
     Report-Pass 'venv' "Python environment ready in $Venv"
 }
 
+function Step-Account {
+    # Autologon from Microsoft Sysinternals stores the password as an LSA secret, not in the registry.
+    $tool = Join-Path $Tools 'Autologon64.exe'
+    if (-not (Test-Path $tool)) {
+        $download = Invoke-Native 'curl.exe' @('-L', '--fail', '--silent', '--show-error', '--retry', '5', '-o', $tool, $AutologonUrl)
+        if ($download.Code -ne 0) { Report-Fail 'account' "Autologon64.exe could not be downloaded: $(Get-LastLines $download.Output 1). Run this step again." }
+    }
+    $signature = Get-AuthenticodeSignature -FilePath $tool
+    if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+        Remove-Item -Force $tool
+        Report-Fail 'account' "Autologon64.exe is not validly signed by Microsoft Corporation ($($signature.Status)); it was deleted. Run this step again."
+    }
+    $password = New-NodePassword
+    $secure = ConvertTo-SecureString -String $password -AsPlainText -Force
+    $existing = Get-LocalUser -Name $NodeUser -ErrorAction SilentlyContinue
+    if ($existing) {
+        Set-LocalUser -Name $NodeUser -Password $secure -PasswordNeverExpires $true
+        Enable-LocalUser -Name $NodeUser
+    } else {
+        New-LocalUser -Name $NodeUser -Password $secure -FullName 'BowlersNetwork render node' `
+            -Description 'Runs the BowlersNetwork render node' -PasswordNeverExpires -UserMayNotChangePassword `
+            -AccountNeverExpires | Out-Null
+    }
+    $users = Get-LocalGroup -SID $UsersSid
+    if (-not (Get-LocalGroupMember -Group $users -Member $NodeUser -ErrorAction SilentlyContinue)) {
+        Add-LocalGroupMember -Group $users -Member $NodeUser
+    }
+    $administrators = Get-LocalGroup -SID $AdministratorsSid.TrimStart('*')
+    if (Get-LocalGroupMember -Group $administrators -Member $NodeUser -ErrorAction SilentlyContinue) {
+        Remove-LocalGroupMember -Group $administrators -Member $NodeUser
+    }
+    $autologon = Invoke-Native $tool @('/accepteula', $NodeUser, $env:COMPUTERNAME, $password)
+    Remove-Variable -Name password, secure
+    $winlogonKey = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
+    $winlogon = Get-ItemProperty -Path $winlogonKey
+    if ($winlogon.PSObject.Properties.Name -contains 'DefaultPassword') {
+        Remove-ItemProperty -Path $winlogonKey -Name 'DefaultPassword'
+    }
+    if ($winlogon.AutoAdminLogon -ne '1' -or $winlogon.DefaultUserName -ne $NodeUser) {
+        Report-Fail 'account' "Automatic sign-in for $NodeUser was not set ($(Get-LastLines $autologon.Output 1)). Run this step again."
+    }
+    Report-Pass 'account' "Standard account $NodeUser signs in automatically (new random password, kept only as an LSA secret)."
+}
+
 function Step-Key {
-    if (Test-KeyPresent) {
-        Report-Pass 'key' "The API key is already in $EnvFile (not shown)."
+    if (-not (Get-LocalUser -Name $NodeUser -ErrorAction SilentlyContinue)) { Report-Fail 'key' 'Run the account step first.' }
+    $saved = Get-SavedKey
+    if ($saved) {
+        Protect-EnvFile
+        Report-Pass 'key' "already saved (prefix $(Get-KeyPrefix $saved)...)"
         return
     }
-    $key = $null
-    if ($KeyFile) {
-        if (-not (Test-Path $KeyFile)) { Report-Fail 'key' "The key file $KeyFile is not there." }
-        $text = Get-Content -Raw -Path $KeyFile
-        $match = [regex]::Match($text, 'bn_[A-Za-z0-9_\-]{8,}')
-        if ($match.Success) {
-            $key = $match.Value
-        } elseif ($text -and ($text.Trim() -notmatch '\s')) {
-            $key = $text.Trim()
-        }
-        Remove-Variable -Name text
-    } elseif (-not [Console]::IsInputRedirected) {
-        $secure = Read-Host -AsSecureString 'Paste the render node API key (nothing is shown) and press Enter'
-        $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
-        try {
-            $key = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer).Trim()
-        } finally {
-            [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer)
-        }
+    $source = $KeyFile
+    if (-not $source) { $source = Find-KeyFile }
+    if (-not $source -or -not (Test-Path $source)) {
+        Report-Fail 'key' "The key file $KeyFileName was not found on the Desktop, in Downloads or Documents, or on any drive."
     }
-    if (-not $key) {
-        Report-Fail 'key' 'No key was given. Run again with -KeyFile <path to the key file>, or ask Boss to run "setup.ps1 -Step key" in his own PowerShell window and paste the key at the hidden prompt.'
-    }
+    $key = Read-KeyFromFile $source
+    if (-not $key) { Report-Fail 'key' "The key file $KeyFileName does not hold a key." }
     $lines = @()
     if (Test-Path $EnvFile) { $lines = @(Get-Content -Path $EnvFile | Where-Object { $_ -notmatch '^\s*BN_API_KEY\s*=' }) }
     $lines += "BN_API_KEY=$key"
     [IO.File]::WriteAllLines($EnvFile, [string[]]$lines, (New-Object Text.UTF8Encoding($false)))
-    Remove-Variable -Name key
-    Remove-Variable -Name lines
-    # Only this account, SYSTEM (S-1-5-18) and administrators (S-1-5-32-544) can read the key.
-    $acl = Invoke-Native 'icacls.exe' @($EnvFile, '/inheritance:r', '/grant:r', "${UserId}:(R,W)", '*S-1-5-18:(F)', '*S-1-5-32-544:(F)')
-    if ($acl.Code -ne 0) { Report-Note "The file permissions could not be narrowed: $(Get-LastLines $acl.Output 1)" }
-    Report-Pass 'key' "The API key is saved in $EnvFile (not shown)."
+    $prefix = Get-KeyPrefix $key
+    Remove-Variable -Name key, lines
+    Protect-EnvFile
+    Report-Pass 'key' "saved (prefix $prefix...)"
+}
+
+function Step-Access {
+    if (-not (Get-LocalUser -Name $NodeUser -ErrorAction SilentlyContinue)) { Report-Fail 'access' 'Run the account step first.' }
+    # The node's account changes everything; administrators have full control; every signed-in account can read and
+    # run the bn command, and can write the state folder (status, pause and resume from any account).
+    $root = Invoke-Native 'icacls.exe' @($Root, '/grant', "${NodeAccount}:(OI)(CI)M", '/grant', "${AdministratorsSid}:(OI)(CI)F", '/grant', "${AuthenticatedUsersSid}:(OI)(CI)RX", '/Q')
+    if ($root.Code -ne 0) { Report-Fail 'access' "Permissions on $Root could not be set: $(Get-LastLines $root.Output 1)" }
+    $state = Invoke-Native 'icacls.exe' @($State, '/grant', "${AuthenticatedUsersSid}:(OI)(CI)M", '/Q')
+    if ($state.Code -ne 0) { Report-Fail 'access' "Permissions on $State could not be set: $(Get-LastLines $state.Output 1)" }
+    if (Test-Path $EnvFile) { Protect-EnvFile }
+    # git refuses a repository owned by another account unless it is named as safe.
+    $safe = $App -replace '\\', '/'
+    $known = Invoke-Native 'git' @('config', '--system', '--get-all', 'safe.directory')
+    if ($known.Output -notmatch [regex]::Escape($safe)) {
+        Invoke-Native 'git' @('config', '--system', '--add', 'safe.directory', $safe) | Out-Null
+    }
+    # No privacy questions on the node account's first sign-in, so nothing covers the screen.
+    $oobe = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\OOBE'
+    New-Item -Path $oobe -Force | Out-Null
+    Set-ItemProperty -Path $oobe -Name 'DisablePrivacyExperience' -Value 1 -Type DWord
+    Report-Pass 'access' "$NodeUser can change $Root; the key is readable by $NodeUser and administrators only."
 }
 
 function Step-Power {
-    foreach ($setting in @('standby-timeout-ac', 'hibernate-timeout-ac')) {
-        $change = Invoke-Native 'powercfg.exe' @('/change', $setting, '0')
-        if ($change.Code -ne 0) { Report-Fail 'power' "powercfg /change $setting 0 failed: $(Get-LastLines $change.Output 1)" }
+    $commands = @(
+        @('/change', 'standby-timeout-ac', '0'),
+        @('/change', 'hibernate-timeout-ac', '0'),
+        @('/change', 'monitor-timeout-ac', '0'),
+        @('/change', 'disk-timeout-ac', '0'),
+        @('/setacvalueindex', 'SCHEME_CURRENT', 'SUB_NONE', 'CONSOLELOCK', '0'),
+        @('/setdcvalueindex', 'SCHEME_CURRENT', 'SUB_NONE', 'CONSOLELOCK', '0'),
+        @('/setactive', 'SCHEME_CURRENT')
+    )
+    foreach ($arguments in $commands) {
+        $result = Invoke-Native 'powercfg.exe' $arguments
+        if ($result.Code -ne 0) { Report-Fail 'power' "powercfg $($arguments -join ' ') failed: $(Get-LastLines $result.Output 1)" }
     }
-    $query = Invoke-Native 'powercfg.exe' @('/query', 'SCHEME_CURRENT', 'SUB_SLEEP', 'STANDBYIDLE')
-    if ($query.Output -match 'Current AC Power Setting Index:\s*(0x[0-9a-fA-F]+)') {
-        if ([Convert]::ToInt32($Matches[1], 16) -ne 0) { Report-Fail 'power' "Sleep on mains power is still set ($($Matches[1]))." }
-        Report-Pass 'power' 'The PC never sleeps or hibernates on mains power.'
-    } else {
-        Report-Pass 'power' 'Sleep and hibernate on mains power set to never (read-back skipped: Windows is not in English).'
+    # Some PCs do not support hibernation at all; then there is nothing to switch off.
+    $hibernate = Invoke-Native 'powercfg.exe' @('/hibernate', 'off')
+    if ($hibernate.Code -ne 0) { Report-Note "Hibernation could not be switched off ($(Get-LastLines $hibernate.Output 1)); its timeout is never." }
+    foreach ($setting in @(@('SUB_SLEEP', 'STANDBYIDLE'), @('SUB_VIDEO', 'VIDEOIDLE'))) {
+        $query = Invoke-Native 'powercfg.exe' @('/query', 'SCHEME_CURRENT', $setting[0], $setting[1])
+        if ($query.Output -match 'Current AC Power Setting Index:\s*(0x[0-9a-fA-F]+)') {
+            if ([Convert]::ToInt32($Matches[1], 16) -ne 0) { Report-Fail 'power' "$($setting[1]) on mains power is still $($Matches[1])." }
+        }
     }
+    Report-Pass 'power' 'On mains power the PC never sleeps or hibernates, the screen stays on, and waking needs no sign-in.'
 }
 
 function Step-Path {
     $bin = Join-Path $App 'bin'
-    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-    $parts = @()
-    if ($userPath) { $parts = @($userPath.Split(';') | Where-Object { $_ }) }
+    $machinePath = [Environment]::GetEnvironmentVariable('Path', 'Machine')
+    $parts = @($machinePath.Split(';') | Where-Object { $_ })
     if ($parts -notcontains $bin) {
-        [Environment]::SetEnvironmentVariable('Path', (($parts + $bin) -join ';'), 'User')
+        [Environment]::SetEnvironmentVariable('Path', (($parts + $bin) -join ';'), 'Machine')
+    }
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    if ($userPath -and ($userPath.Split(';') -contains $bin)) {
+        [Environment]::SetEnvironmentVariable('Path', (($userPath.Split(';') | Where-Object { $_ -and $_ -ne $bin }) -join ';'), 'User')
     }
     Update-SessionPath
     $command = Get-Command 'bn' -ErrorAction SilentlyContinue
     if (-not $command -or ($command.Source -ne (Join-Path $bin 'bn.cmd'))) { Report-Fail 'path' "The bn command is not found in $bin." }
-    Report-Pass 'path' "$bin is on the user PATH; new PowerShell windows know the bn command."
+    Report-Pass 'path' "$bin is on the machine PATH: bn status, bn pause and bn resume work from every account."
 }
 
 function Step-Selfcheck {
-    $result = Invoke-Bnrender @('selfcheck', '--report', (Join-Path $State 'selfcheck-setup.json'))
+    $report = Join-Path $State 'selfcheck-setup.json'
+    $result = Invoke-Bnrender @('selfcheck', '--report', $report)
     Write-Host $result.Output
-    if ($result.Code -ne 0) { Report-Fail 'selfcheck' 'The self-check found problems (the FAIL lines above).' }
-    Report-Pass 'selfcheck' 'Everything the node needs works in this window.'
+    $failed = Get-FailedChecks $report
+    if ($failed.Count -eq 0) {
+        Report-Pass 'selfcheck' 'Everything the node needs works.'
+        return
+    }
+    if (@($failed | Where-Object { $_ -ne 'gpu' }).Count -gt 0) {
+        Report-Fail 'selfcheck' "Failed checks: $($failed -join ', ') (the FAIL lines above)."
+    }
+    # Only the graphics card failed: the AMD driver is installed if winget offers it. The node never renders GPU
+    # work on the CPU: until the card passes this check in the node's own session, GPU jobs wait.
+    $search = Invoke-Native 'winget' @('search', '--id', $AmdDriverId, '-e', '--accept-source-agreements')
+    if ($search.Output -notmatch [regex]::Escape($AmdDriverId)) {
+        Report-Fail 'selfcheck' 'Blender cannot use the graphics card, and no AMD driver is available through winget.'
+    }
+    Report-Note 'Installing the AMD graphics driver...'
+    Install-WithWinget $AmdDriverId @() | Out-Null
+    $result = Invoke-Bnrender @('selfcheck', '--report', $report)
+    Write-Host $result.Output
+    $failed = Get-FailedChecks $report
+    if ($failed.Count -eq 0) {
+        Report-Pass 'selfcheck' 'The AMD driver was installed; everything the node needs works.'
+        return
+    }
+    if (@($failed | Where-Object { $_ -ne 'gpu' }).Count -gt 0) {
+        Report-Fail 'selfcheck' "Failed checks: $($failed -join ', ') (the FAIL lines above)."
+    }
+    Report-Pass 'selfcheck' 'The AMD driver was installed and needs the restart; the node checks the graphics card again when it starts, and GPU jobs wait until it passes.'
 }
 
 function New-NodeSettings {
-    # Task priority 3 starts the process at "above normal" (the default, 7, would be below normal).
+    # Task priority 3 starts the runner at "above normal" (the default, 7, would be below normal).
     return New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable `
         -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) `
         -MultipleInstances IgnoreNew -Priority 3
 }
 
-function Register-NodeTask([string]$Mode) {
-    $action = New-ScheduledTaskAction -Execute $VenvPythonW -Argument '-m bnrender run' -WorkingDirectory $App
-    if ($Mode -eq 'boot') {
-        # S4U: runs whether or not anyone is signed in, without storing a password.
-        $principal = New-ScheduledTaskPrincipal -UserId $UserId -LogonType S4U -RunLevel Limited
-        $triggers = @((New-ScheduledTaskTrigger -AtStartup), (New-ScheduledTaskTrigger -AtLogOn -User $UserId))
-    } else {
-        $principal = New-ScheduledTaskPrincipal -UserId $UserId -LogonType Interactive -RunLevel Limited
-        $triggers = @(New-ScheduledTaskTrigger -AtLogOn -User $UserId)
-    }
-    Register-ScheduledTask -TaskName $TaskName -Action $action -Principal $principal -Trigger $triggers -Settings (New-NodeSettings) -Force | Out-Null
-}
-
-function Test-GpuBeforeSignIn {
-    # Runs the self-check once in the same context as an at-boot task (S4U, no desktop session), because whether
-    # Blender can use the graphics card there is not certain. Returns the gpu check's detail, or '' if it passed.
-    $report = Join-Path $State 'selfcheck-task.json'
-    if (Test-Path $report) { Remove-Item -Force $report }
-    Unregister-ScheduledTask -TaskName $CheckTaskName -Confirm:$false -ErrorAction SilentlyContinue
-    $action = New-ScheduledTaskAction -Execute $VenvPython -Argument "-m bnrender selfcheck --report `"$report`"" -WorkingDirectory $App
-    $principal = New-ScheduledTaskPrincipal -UserId $UserId -LogonType S4U -RunLevel Limited
-    Register-ScheduledTask -TaskName $CheckTaskName -Action $action -Principal $principal -Settings (New-NodeSettings) -Force | Out-Null
-    Start-ScheduledTask -TaskName $CheckTaskName
-    $deadline = (Get-Date).AddMinutes($CheckTaskMinutes)
-    Start-Sleep -Seconds 5
-    while ((Get-Date) -lt $deadline) {
-        $task = Get-ScheduledTask -TaskName $CheckTaskName
-        if ($task.State -ne 'Running') { break }
-        Start-Sleep -Seconds 5
-    }
-    Stop-ScheduledTask -TaskName $CheckTaskName -ErrorAction SilentlyContinue
-    Unregister-ScheduledTask -TaskName $CheckTaskName -Confirm:$false -ErrorAction SilentlyContinue
-    if (-not (Test-Path $report)) { return 'the check could not run before sign-in (no report was written)' }
-    $parsed = Get-Content -Raw -Path $report | ConvertFrom-Json
-    $gpu = @($parsed.checks | Where-Object { $_.name -eq 'gpu' }) | Select-Object -First 1
-    if ($gpu -and $gpu.status -eq 'PASS') { return '' }
-    if ($gpu) { return [string]$gpu.detail }
-    return 'the check did not reach the graphics card test'
-}
-
 function Step-Task {
-    Report-Note 'Testing the graphics card the way the node runs at boot (takes a minute or two)...'
-    $problem = Test-GpuBeforeSignIn
-    if (-not $problem) {
-        Register-NodeTask 'boot'
-        Report-Pass 'task' "Task '$TaskName' starts the node at boot (before sign-in) and at sign-in, as $UserId."
-    } else {
-        Register-NodeTask 'logon'
-        Report-Pass 'task' "Task '$TaskName' starts the node when $UserId signs in."
-        Report-Note "Before sign-in the graphics card cannot be used here ($problem)."
-        Report-Note 'After a power cut the node therefore starts at the next sign-in.'
+    if (-not (Get-LocalUser -Name $NodeUser -ErrorAction SilentlyContinue)) { Report-Fail 'task' 'Run the account step first.' }
+    Unregister-ScheduledTask -TaskName $OldCheckTaskName -Confirm:$false -ErrorAction SilentlyContinue
+    # Interactive: runs in the node account's own desktop session (the graphics card and the screen work there), and
+    # Task Scheduler stores no password.
+    $action = New-ScheduledTaskAction -Execute $VenvPythonW -Argument '-m bnrender run' -WorkingDirectory $App
+    $principal = New-ScheduledTaskPrincipal -UserId $NodeAccount -LogonType Interactive -RunLevel Limited
+    $trigger = New-ScheduledTaskTrigger -AtLogOn -User $NodeAccount
+    Register-ScheduledTask -TaskName $TaskName -Action $action -Principal $principal -Trigger $trigger -Settings (New-NodeSettings) -Force | Out-Null
+    $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+    if (-not $task -or $task.Principal.UserId -notlike "*$NodeUser" -or $task.Principal.LogonType -ne 'Interactive') {
+        Report-Fail 'task' "The task '$TaskName' was not registered as expected."
     }
+    Report-Pass 'task' "Task '$TaskName' starts the node when $NodeUser signs in (automatically after every start of the PC)."
 }
 
-function Step-Start {
-    $task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-    if (-not $task) { Report-Fail 'start' "The task '$TaskName' is not registered; run the task step." }
-    Start-ScheduledTask -TaskName $TaskName
-    Start-Sleep -Seconds 20
-    $status = Invoke-Bnrender @('status')
-    Write-Host $status.Output
-    if ($status.Output -notmatch 'RUNNING|PAUSED|FINISHED') {
-        Report-Fail 'start' "The node did not report RUNNING. Its log is $State\log.txt"
-    }
-    Report-Pass 'start' 'The render node is running.'
+function Step-Restart {
+    Write-Host 'The PC restarts in 60 s and signs in to the BNRender account, which shows the BowlersNetwork status screen.'
+    $result = Invoke-Native 'shutdown.exe' @('/r', '/t', '60', '/c', 'BowlersNetwork render node: starting')
+    if ($result.Code -ne 0) { Report-Fail 'restart' "The restart could not be scheduled: $(Get-LastLines $result.Output 1)" }
+    Report-Pass 'restart' 'Restart scheduled in 60 s.'
 }
 
 $Steps = [ordered]@{
@@ -446,12 +609,14 @@ $Steps = [ordered]@{
     'blender' = { Step-Blender }
     'repo' = { Step-Repo }
     'venv' = { Step-Venv }
+    'account' = { Step-Account }
     'key' = { Step-Key }
+    'access' = { Step-Access }
     'power' = { Step-Power }
     'path' = { Step-Path }
     'selfcheck' = { Step-Selfcheck }
     'task' = { Step-Task }
-    'start' = { Step-Start }
+    'restart' = { Step-Restart }
 }
 
 if ($Step) {
@@ -462,6 +627,4 @@ if ($Step) {
 foreach ($name in $Steps.Keys) {
     & $Steps[$name]
 }
-Write-Host ''
-Write-Host 'Setup complete. In a new PowerShell window: bn status'
 exit 0
