@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+blender/renders/
+blender/selftest-out/
+.env

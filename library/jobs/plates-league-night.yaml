@@ -1,0 +1,878 @@
+# Job 1 (render-node-plan.md section 9.3): the 3D plate library in the base mood, first batch of 20.
+# Labels follow library/taxonomy.yaml; params name a template in blender/library_shots.py.
+id: plates-league-night
+title: 3D plates, league night
+kind: plate_3d
+device: gpu
+priority: 10
+after: []
+inputs:
+- sources/assets/
+models: []
+executor: blender_item
+entry: render_item.py
+items:
+- asset_id: plate_3d/house/rack-lowering-league-night
+  title: A fresh rack set on the deck
+  group: House plates
+  description: The pinsetter lowers ten pins onto the deck; they settle with a small wobble and the setting table lifts away. Low and close on
+    the rack.
+  labels:
+    subjects:
+    - pins
+    - rack
+    - pinsetter
+    - pin_deck
+    events:
+    - rack_lowering
+    camera_angle: low_front
+    camera_move: static
+    shot_size: close
+    speed: real_time
+    lane_zone:
+    - pin_deck
+    pins_state: full_rack
+    ball: none
+    result: none
+    story_uses:
+    - establishing
+    - ritual
+    - anticipation
+    series_fit:
+    - promo_emotional
+    - bowling_iq
+    - promo_hype
+    energy: '2'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - new rack
+    - ten frames
+    - pins come down
+  params:
+    template: rack_lowering
+    duration_s: 4.0
+    touchdown_s: 0.6
+  estimate:
+    frames: 120
+- asset_id: plate_3d/house/lane-push-high-league-night
+  title: The whole lane, a slow push from above the approach
+  group: House plates
+  description: High on the centre line behind the foul line, a slow push down the full 60 feet to a full rack.
+  labels:
+    subjects:
+    - lane
+    - rack
+    - gutter
+    - arrows
+    events:
+    - idle
+    camera_angle: behind_bowler
+    camera_move: push_in
+    shot_size: establishing
+    speed: real_time
+    lane_zone:
+    - approach
+    - heads
+    - arrows
+    - midlane
+    - backend
+    - pin_deck
+    pins_state: full_rack
+    ball: none
+    result: none
+    story_uses:
+    - establishing
+    - focus
+    - precision
+    series_fit:
+    - promo_emotional
+    - bowling_iq
+    - promo_hype
+    - history
+    energy: '2'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - one lane
+    - sixty feet
+    - the length of the lane
+  params:
+    template: lane_push
+    duration_s: 5.0
+  estimate:
+    frames: 150
+- asset_id: plate_3d/house/foul-line-along-league-night
+  title: Along the foul line, the house dark above it
+  group: House plates
+  description: 'Low on the foul line, looking along it across the house: the black line runs from the corner of the frame to the gutter. A slow
+    move along the line.'
+  labels:
+    subjects:
+    - foul_line
+    - lane
+    events:
+    - idle
+    camera_angle: foul_line_level
+    camera_move: pan_right
+    shot_size: close
+    speed: real_time
+    lane_zone:
+    - foul_line
+    pins_state: none
+    ball: none
+    result: none
+    story_uses:
+    - tension
+    - pressure
+    - precision
+    series_fit:
+    - promo_emotional
+    - bowling_iq
+    energy: '1'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - no second chances
+    - the line you don't cross
+  params:
+    template: foul_line
+    duration_s: 6.0
+  estimate:
+    frames: 180
+- asset_id: plate_3d/ball/return-orbit-league-night
+  title: Our ball waiting on the return
+  group: Ball motion plates
+  description: The green and black ball sits on the ball return; the camera circles it slowly and close.
+  labels:
+    subjects:
+    - ball
+    - ball_return
+    events:
+    - idle
+    camera_angle: orbit_close
+    camera_move: orbit
+    shot_size: close
+    speed: real_time
+    pins_state: none
+    ball: bn_hero_green
+    result: none
+    story_uses:
+    - anticipation
+    - ritual
+    - reveal
+    series_fit:
+    - promo_emotional
+    - promo_hype
+    - bowling_iq
+    energy: '2'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - before the ball leaves your hand
+    - waiting ball
+  params:
+    template: return_orbit
+    duration_s: 6.0
+  estimate:
+    frames: 180
+- asset_id: plate_3d/house/walk-to-line-pov-league-night
+  title: The walk to the line, through the bowler's eyes
+  group: House plates
+  description: Four steps up the approach with a dip on each, the slide, then a hold at the foul line looking at the pins.
+  labels:
+    subjects:
+    - lane
+    - foul_line
+    - approach_dots
+    - rack
+    events:
+    - walk_to_line
+    camera_angle: pov_bowler
+    camera_move: walk
+    shot_size: wide
+    speed: real_time
+    lane_zone:
+    - approach
+    - foul_line
+    pins_state: full_rack
+    ball: none
+    result: none
+    story_uses:
+    - ritual
+    - focus
+    - anticipation
+    series_fit:
+    - promo_emotional
+    - bowling_iq
+    energy: '2'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - four steps
+    - the approach
+    - walking up
+  params:
+    template: walk_pov
+    duration_s: 4.0
+  estimate:
+    frames: 120
+- asset_id: plate_3d/house/focus-pull-line-to-pins-league-night
+  title: Focus pulls from the foul line to the pins
+  group: House plates
+  description: Locked low at the line; the focus travels from the foul line to the pins 60 feet away.
+  labels:
+    subjects:
+    - foul_line
+    - lane
+    - rack
+    events:
+    - idle
+    camera_angle: foul_line_level
+    camera_move: rack_focus
+    shot_size: wide
+    speed: real_time
+    lane_zone:
+    - foul_line
+    - pin_deck
+    pins_state: full_rack
+    ball: none
+    result: none
+    story_uses:
+    - focus
+    - tension
+    - anticipation
+    series_fit:
+    - promo_emotional
+    - bowling_iq
+    - pro_wiki
+    energy: '1'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - the quiet in your head
+    - locking in
+  params:
+    template: focus_pull
+    duration_s: 6.0
+    pull_from_s: 1.0
+    pull_to_s: 2.6
+  estimate:
+    frames: 180
+- asset_id: plate_3d/house/arrows-overhead-league-night
+  title: The target arrows from overhead
+  group: House plates
+  description: Straight down on the arrows, the board-10 arrow held at one spot as the camera lowers; the ring around it and the ball line are
+    exported for drawing.
+  labels:
+    subjects:
+    - arrows
+    - lane
+    - gutter
+    events:
+    - idle
+    camera_angle: overhead
+    camera_move: crane_down
+    shot_size: medium
+    speed: real_time
+    lane_zone:
+    - arrows
+    pins_state: none
+    ball: none
+    result: none
+    story_uses:
+    - precision
+    - explanation
+    - focus
+    series_fit:
+    - bowling_iq
+    - promo_emotional
+    energy: '1'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - the mark
+    - second arrow
+    - board 10
+    - aim
+  params:
+    template: arrows_overhead
+    duration_s: 7.0
+    arrow_at:
+    - 500
+    - 980
+  estimate:
+    frames: 210
+- asset_id: plate_3d/house/approach-pool-league-night
+  title: The approach under one pool of light
+  group: House plates
+  description: The house dimmed; one warm spotlight on the approach; a slow low push toward the line.
+  labels:
+    subjects:
+    - lane
+    - approach_dots
+    - foul_line
+    - rack
+    events:
+    - idle
+    camera_angle: behind_bowler
+    camera_move: push_in
+    shot_size: wide
+    speed: real_time
+    lane_zone:
+    - approach
+    - foul_line
+    pins_state: full_rack
+    ball: none
+    result: none
+    story_uses:
+    - establishing
+    - loneliness
+    - anticipation
+    - nostalgia
+    series_fit:
+    - promo_emotional
+    - pro_wiki
+    - history
+    energy: '1'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - where it all started
+    - spotlight
+    - every pro started here
+  params:
+    template: approach_pool
+    duration_s: 6.0
+  estimate:
+    frames: 180
+- asset_id: plate_3d/house/monitor-push-league-night
+  title: A push in on the lane monitor
+  group: House plates
+  description: At standing eye height, a level push in on the overhead lane monitor; the glass corners are exported so any screen can be laid
+    in.
+  labels:
+    subjects:
+    - monitor
+    - house
+    events:
+    - idle
+    camera_angle: pov_bowler
+    camera_move: push_in
+    shot_size: medium
+    speed: real_time
+    pins_state: none
+    ball: none
+    result: none
+    story_uses:
+    - reveal
+    - explanation
+    - call_to_action_backdrop
+    series_fit:
+    - platform_feature
+    - promo_emotional
+    energy: '2'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - screen
+    - scoreboard
+    - score tracking
+    - follow the pros
+  params:
+    template: monitor_push
+    duration_s: 7.0
+    glass_at:
+    - 450
+    - 727
+  estimate:
+    frames: 210
+- asset_id: plate_3d/ball/laydown-slow-league-night
+  title: The ball lays down past the foul line, slow motion
+  group: Ball motion plates
+  description: 'Low and side on: the ball drops into frame, touches the lane past the line and skids away. One-fifth speed.'
+  labels:
+    subjects:
+    - ball
+    - lane
+    - foul_line
+    events:
+    - release
+    - laydown
+    - skid
+    camera_angle: low_side
+    camera_move: track_with_subject
+    shot_size: close
+    speed: slow_5x
+    lane_zone:
+    - foul_line
+    - heads
+    pins_state: none
+    ball: bn_hero_green
+    result: none
+    story_uses:
+    - impact
+    - precision
+    - ritual
+    series_fit:
+    - bowling_iq
+    - promo_emotional
+    - promo_hype
+    energy: '3'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - one ball
+    - the release
+    - touchdown
+  params:
+    template: laydown
+    duration_s: 4.0
+    slow: 0.2
+    land_s: 1.2
+  estimate:
+    frames: 120
+- asset_id: plate_3d/ball/hook-behind-ball-league-night
+  title: Behind the ball as it hooks
+  group: Ball motion plates
+  description: Low behind the ball as it turns and hooks left past the breakpoint toward the pocket, boards streaming by. One-fifth speed.
+  labels:
+    subjects:
+    - ball
+    - lane
+    events:
+    - skid
+    - hook
+    - roll
+    camera_angle: behind_bowler
+    camera_move: track_with_subject
+    shot_size: close
+    speed: slow_5x
+    lane_zone:
+    - midlane
+    - backend
+    pins_state: full_rack
+    ball: bn_hero_green
+    result: none
+    story_uses:
+    - precision
+    - explanation
+    - anticipation
+    series_fit:
+    - bowling_iq
+    - promo_hype
+    - promo_emotional
+    energy: '3'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - one shot
+    - the breakpoint
+    - ball turning
+  params:
+    template: hook_behind
+    duration_s: 4.0
+    slow: 0.2
+    start_feet: 32.0
+  estimate:
+    frames: 120
+- asset_id: plate_3d/strike/pocket-strike-pin-cam-slow5-league-night
+  title: Pocket strike from the pin cam, slow motion
+  group: Strike plates
+  description: 'Behind and above the rack: the ball comes straight at us into the 1-3 pocket and the pins burst; the rack is soft in the foreground.
+    One-fifth speed.'
+  labels:
+    subjects: &id001
+    - ball
+    - pins
+    - rack
+    - head_pin
+    - pin_deck
+    result: strike
+    pins_state: falling
+    ball: bn_hero_green
+    lane_zone: &id002
+    - backend
+    - pin_deck
+    events:
+    - strike
+    - pocket_hit
+    - entry_into_pocket
+    - pins_falling
+    camera_angle: pin_cam
+    camera_move: push_in
+    shot_size: medium
+    speed: slow_5x
+    story_uses:
+    - tension
+    - anticipation
+    - impact
+    series_fit:
+    - promo_hype
+    - promo_emotional
+    - bowling_iq
+    energy: '4'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - ball coming at us
+    - the house holding its breath
+  params:
+    template: strike
+    camera: pin_cam
+    speed: slow_5x
+    duration_s: 6.0
+    contact_at_s: 4.8
+    pocket: 17.5
+    ball_speed: 7.3
+  estimate:
+    frames: 180
+- asset_id: plate_3d/strike/pocket-strike-low-front-real-league-night
+  title: Pocket strike, low in front, real speed
+  group: Strike plates
+  description: 'Low on the lane in front of the rack: the ball drives through the pocket, the pins explode and settle. Real speed.'
+  labels:
+    subjects: *id001
+    result: strike
+    pins_state: falling
+    ball: bn_hero_green
+    lane_zone: *id002
+    events:
+    - strike
+    - pocket_hit
+    - entry_into_pocket
+    - pins_falling
+    - pins_settled
+    camera_angle: low_front
+    camera_move: static
+    shot_size: medium
+    speed: real_time
+    story_uses:
+    - impact
+    - triumph
+    - release_of_tension
+    series_fit:
+    - promo_hype
+    - promo_emotional
+    - pro_wiki
+    energy: '5'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - the hit
+    - crash
+  params:
+    template: strike
+    camera: low_front
+    speed: real_time
+    duration_s: 5.0
+    contact_at_s: 1.2
+    pocket: 17.5
+    ball_speed: 7.3
+  estimate:
+    frames: 150
+- asset_id: plate_3d/strike/pocket-strike-low-front-slow5-league-night
+  title: Pocket strike, low in front, slow motion
+  group: Strike plates
+  description: 'Low on the lane in front of the rack: the ball drives through the pocket and the pins scatter, one-fifth speed.'
+  labels:
+    subjects: *id001
+    result: strike
+    pins_state: falling
+    ball: bn_hero_green
+    lane_zone: *id002
+    events:
+    - strike
+    - pocket_hit
+    - entry_into_pocket
+    - pins_falling
+    camera_angle: low_front
+    camera_move: static
+    shot_size: medium
+    speed: slow_5x
+    story_uses:
+    - impact
+    - triumph
+    series_fit:
+    - promo_hype
+    - promo_emotional
+    - bowling_iq
+    energy: '5'
+    mood: league_night_warm
+    rights: owned_render
+  params:
+    template: strike
+    camera: low_front
+    speed: slow_5x
+    duration_s: 6.0
+    contact_at_s: 1.5
+    pocket: 17.5
+    ball_speed: 7.3
+  estimate:
+    frames: 180
+- asset_id: plate_3d/strike/pocket-strike-side-high-slow5-league-night
+  title: Pocket strike, the replay angle, slow motion
+  group: Strike plates
+  description: 'High at the side inside the kickbacks, looking down across the deck: the whole rack as the ball hits the pocket. One-fifth speed.'
+  labels:
+    subjects: *id001
+    result: strike
+    pins_state: falling
+    ball: bn_hero_green
+    lane_zone: *id002
+    events:
+    - strike
+    - pocket_hit
+    - entry_into_pocket
+    - pins_falling
+    camera_angle: side_high
+    camera_move: static
+    shot_size: wide
+    speed: slow_5x
+    story_uses:
+    - impact
+    - payoff
+    - explanation
+    series_fit:
+    - promo_hype
+    - promo_emotional
+    - bowling_iq
+    energy: '4'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - replay
+    - that's bowling at its best
+  params:
+    template: strike
+    camera: side_high
+    speed: slow_5x
+    duration_s: 6.0
+    contact_at_s: 1.5
+    pocket: 17.5
+    ball_speed: 7.3
+  estimate:
+    frames: 180
+- asset_id: plate_3d/strike/pocket-strike-three-quarter-slow5-league-night
+  title: Pocket strike, raised three-quarter angle, slow motion
+  group: Strike plates
+  description: 'Raised at three-quarters to the rack: the ball in the pocket and the pins lifting into the air. One-fifth speed.'
+  labels:
+    subjects: *id001
+    result: strike
+    pins_state: falling
+    ball: bn_hero_green
+    lane_zone: *id002
+    events:
+    - strike
+    - pocket_hit
+    - entry_into_pocket
+    - pins_falling
+    camera_angle: elevated_three_quarter
+    camera_move: static
+    shot_size: medium
+    speed: slow_5x
+    story_uses:
+    - impact
+    - celebration
+    - triumph
+    series_fit:
+    - promo_hype
+    - promo_emotional
+    energy: '5'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - photo moment
+    - the card
+  params:
+    template: strike
+    camera: elevated_three_quarter
+    speed: slow_5x
+    duration_s: 6.0
+    contact_at_s: 1.5
+    pocket: 17.5
+    ball_speed: 7.3
+  estimate:
+    frames: 180
+- asset_id: plate_3d/strike/pocket-strike-overhead-real-league-night
+  title: Pocket strike from overhead, real speed
+  group: Strike plates
+  description: 'Straight down on the rack: the ball enters the pocket from below and the pins scatter outward. Real speed.'
+  labels:
+    subjects: *id001
+    result: strike
+    pins_state: falling
+    ball: bn_hero_green
+    lane_zone: *id002
+    events:
+    - strike
+    - pocket_hit
+    - entry_into_pocket
+    - pins_falling
+    - pins_settled
+    camera_angle: overhead
+    camera_move: static
+    shot_size: wide
+    speed: real_time
+    story_uses:
+    - explanation
+    - impact
+    - precision
+    series_fit:
+    - bowling_iq
+    - promo_hype
+    energy: '4'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - pin action from above
+    - top view
+  params:
+    template: strike
+    camera: overhead
+    speed: real_time
+    duration_s: 4.0
+    contact_at_s: 1.0
+    pocket: 17.5
+    ball_speed: 7.3
+  estimate:
+    frames: 120
+- asset_id: plate_3d/strike/pocket-strike-overhead-slow5-league-night
+  title: Pocket strike from overhead, slow motion
+  group: Strike plates
+  description: 'Straight down on the rack: the ball enters the pocket and the pin action unfolds outward, one-fifth speed.'
+  labels:
+    subjects: *id001
+    result: strike
+    pins_state: falling
+    ball: bn_hero_green
+    lane_zone: *id002
+    events:
+    - strike
+    - pocket_hit
+    - entry_into_pocket
+    - pins_falling
+    camera_angle: overhead
+    camera_move: static
+    shot_size: wide
+    speed: slow_5x
+    story_uses:
+    - explanation
+    - impact
+    series_fit:
+    - bowling_iq
+    - promo_hype
+    energy: '4'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - pin action
+    - how a strike happens
+  params:
+    template: strike
+    camera: overhead
+    speed: slow_5x
+    duration_s: 6.0
+    contact_at_s: 1.5
+    pocket: 17.5
+    ball_speed: 7.3
+  estimate:
+    frames: 180
+- asset_id: plate_3d/strike/pocket-strike-behind-bowler-real-league-night
+  title: The whole roll from behind the bowler to the strike
+  group: Strike plates
+  description: 'From behind the foul line with a long lens: the ball rolls away down the lane, hooks into the pocket and strikes. Real speed.'
+  labels:
+    subjects:
+    - ball
+    - pins
+    - rack
+    - head_pin
+    - pin_deck
+    - lane
+    result: strike
+    pins_state: falling
+    ball: bn_hero_green
+    lane_zone:
+    - heads
+    - arrows
+    - midlane
+    - backend
+    - pin_deck
+    events:
+    - strike
+    - pocket_hit
+    - entry_into_pocket
+    - pins_falling
+    - roll
+    - hook
+    camera_angle: behind_bowler
+    camera_move: static
+    shot_size: establishing
+    speed: real_time
+    story_uses:
+    - anticipation
+    - payoff
+    - triumph
+    series_fit:
+    - promo_hype
+    - promo_emotional
+    - bowling_iq
+    energy: '4'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - down the lane
+    - the whole shot
+  params:
+    template: strike
+    camera: behind_bowler
+    speed: real_time
+    duration_s: 4.5
+    contact_at_s: 2.4
+    pocket: 17.5
+    ball_speed: 7.3
+  estimate:
+    frames: 135
+- asset_id: plate_3d/strike/pocket-strike-macro-slow10-league-night
+  title: The pocket hit in macro, one-tenth speed
+  group: Strike plates
+  description: 'Extremely close on the 1-3 pocket: the ball meets the head pin and the 3 pin, one-tenth speed.'
+  labels:
+    subjects: *id001
+    result: strike
+    pins_state: falling
+    ball: bn_hero_green
+    lane_zone: *id002
+    events:
+    - strike
+    - pocket_hit
+    - entry_into_pocket
+    - pins_falling
+    camera_angle: macro
+    camera_move: static
+    shot_size: extreme_close
+    speed: slow_10x
+    story_uses:
+    - impact
+    - tension
+    series_fit:
+    - promo_hype
+    - bowling_iq
+    energy: '5'
+    mood: league_night_warm
+    rights: owned_render
+    aliases:
+    - the moment of impact
+    - ball meets pin
+  params:
+    template: strike
+    camera: macro
+    speed: slow_10x
+    duration_s: 5.0
+    contact_at_s: 1.0
+    pocket: 17.5
+    ball_speed: 7.3
+  estimate:
+    frames: 150
