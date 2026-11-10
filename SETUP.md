@@ -97,7 +97,7 @@ Apply the fix, then run the same step again. If a step still fails after three t
 | `selfcheck` | `FAIL  ffmpeg`, `FAIL  ffprobe` or `FAIL  x264` | Run the `ffmpeg` step, then `selfcheck`. |
 | `selfcheck` | `FAIL  python`, `FAIL  packages` or `FAIL  psutil` | Run the `venv` step, then `selfcheck`. |
 | `selfcheck` | `FAIL  api        There is no BN_API_KEY in .env` | Run the `key` step, then `selfcheck`. |
-| `selfcheck` | only `gpu` failed | Nothing to do: the step installs the AMD driver through winget by itself. If no driver is available, see "When to stop". |
+| `selfcheck` | only `gpu` failed | Download the current AMD Software: Adrenalin Edition driver for the Radeon RX 6600 from amd.com (drivers.amd.com needs the header `Referer: https://www.amd.com/`), check its signature, install it with `Setup.exe -INSTALL -LOG <file>`, then run `selfcheck` again. Never use winget's AMD package: it is a 2023 driver. |
 | `power`, `path`, `access`, `task` | anything | Run the step again. |
 
 ### When to stop
@@ -111,7 +111,7 @@ These are the only times you message Boss. Send the sentence, then stop.
 | `winget` fails | This PC has no Windows package manager; please install App Installer from the Microsoft Store. |
 | `key` says the key file was not found, or holds no key | I could not find studio-node-api-key.txt; please put it on the Desktop and tell me to continue. |
 | `selfcheck` says `The API key was refused` | The API key in studio-node-api-key.txt was refused; a new key is needed from the server. |
-| `selfcheck` says no AMD driver is available through winget | Blender cannot use the graphics card here; please install the AMD Adrenalin driver for the Radeon RX 6600. |
+| `selfcheck` still fails `gpu` after the current Adrenalin driver is installed | Blender cannot use the graphics card here; the driver needs a person's attention. |
 | `blender` reports a SHA-256 mismatch twice | The Blender download failed its checksum twice, so I stopped for safety. |
 | `selfcheck` fails on `jobs`, `labels` or `disk`, or any step fails three times | Setup stopped at step `<step>`: `<the FAIL line>` |
 
