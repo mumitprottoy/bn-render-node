@@ -1,0 +1,368 @@
+# The screenplay query set for the findability test (library-labels-and-search.md section 5.3, part 2).
+#
+# Each entry is a beat as a screenplay or scene direction writes it, taken from our own films, and the facet
+# conditions a good answer must meet. Expectations name facets, never asset ids, so the set keeps working as the
+# library changes. A multi-value facet (events, subjects, story_uses) must carry every listed value; a single-value
+# facet given a list may carry any one of them.
+#
+# A beat passes when one of its top 3 results meets `expect`. When no item in the library meets it, the beat is
+# recorded as missing from the library (the demand log), not as a failure. Add the beats of every new film here.
+#
+# Sources: Ten Frames V1 (narration over the 3D game capture), Ten Frames V2 (3D plates, 3d/tenframes_shots.py, cut to
+# Jessica's words), League Night (Bill's narration and the ten-shot plan), Bowling IQ 01 "Why does the ball hook?"
+# (3d/iq_shots.py), Bowling IQ "Aiming" (Del Warren's finding, 3d/aim_shots.py), and "Pick Up Your Spares".
+
+version: 1
+
+queries:
+
+  # Ten Frames V2: the 3D plates, one per line of narration.
+
+  - want: "Ten frames. The setting table lowers ten fresh pins onto the deck, they settle, and it lifts away."
+    kind: plate_3d
+    expect: {events: [rack_lowering]}
+    source: "Ten Frames V2, shot 'rack': Ten frames."
+
+  - want: "One lane. High on the centre line, a slow push down the full sixty feet."
+    kind: plate_3d
+    expect: {subjects: [lane], camera_move: push_in}
+    source: "Ten Frames V2, shot 'lane': One lane."
+
+  - want: "No second chances. Low on the foul line, looking along it across a dark house."
+    kind: plate_3d
+    expect: {camera_angle: foul_line_level}
+    source: "Ten Frames V2, shot 'foulline': No second chances."
+
+  - want: "It starts long before the ball leaves your hand: the ball waiting on the return while the camera circles it."
+    kind: plate_3d
+    expect: {subjects: [ball_return], camera_move: orbit}
+    source: "Ten Frames V2, shot 'orbit': It starts long before the ball leaves your hand."
+
+  - want: "The walk to the line: four steps down the approach, seen through her eyes."
+    kind: plate_3d
+    expect: {events: [walk_to_line]}
+    source: "Ten Frames V2, shot 'walk': The walk to the line."
+
+  - want: "The quiet in your head. Locked at the line while focus pulls from the foul line to the pins sixty feet away."
+    kind: plate_3d
+    expect: {camera_move: rack_focus}
+    source: "Ten Frames V2, shot 'focus': The quiet in your head."
+
+  - want: "The mark you've hit a thousand times: straight down on the arrows."
+    kind: plate_3d
+    expect: {subjects: [arrows], camera_angle: overhead}
+    source: "Ten Frames V2, shot 'arrows': The mark you've hit a thousand times."
+
+  - want: "Every pro you've ever watched started right here: the approach under one pool of light, a slow push."
+    kind: plate_3d
+    expect: {lane_zone: [approach]}
+    source: "Ten Frames V2, shot 'approach': Every pro you've ever watched started right here."
+
+  - want: "One ball. Low and side on in slow motion, the ball drops into frame and lays down on the oil."
+    kind: plate_3d
+    expect: {events: [laydown], camera_angle: low_side}
+    source: "Ten Frames V2, shot 'laydown': One ball."
+
+  - want: "One shot. Behind the ball as it hooks left past the breakpoint, boards streaming by."
+    kind: plate_3d
+    expect: {events: [hook]}
+    source: "Ten Frames V2, shot 'hook': One shot."
+
+  - want: "And a whole house holding its breath."
+    kind: plate_3d
+    expect: {story_uses: [tension]}
+    source: "Ten Frames V1 and V2: And a whole house holding its breath (whispered, the music drops away)."
+
+  - want: "The ball comes straight at us from the pins' point of view in slow motion, ending just before contact."
+    kind: plate_3d
+    expect: {camera_angle: pin_cam}
+    source: "Ten Frames V2, strike camera 'incoming'."
+
+  - want: "The strike at real speed from the front, so the crash lands on the beat."
+    kind: plate_3d
+    expect: {events: [strike], speed: real_time}
+    source: "Ten Frames V2, strike camera 'front'."
+
+  - want: "Side-on slow-motion replay of the strike."
+    kind: plate_3d
+    expect: {events: [strike], camera_angle: [low_side, side_high]}
+    source: "Ten Frames V2, strike camera 'side'."
+
+  - want: "The strike in slow motion from a raised three-quarter angle, frozen later for the card."
+    kind: plate_3d
+    expect: {events: [strike], camera_angle: elevated_three_quarter}
+    source: "Ten Frames V2, strike camera 'card'."
+
+  - want: "Follow the pros. Track every game you roll: a level push in on the lane monitor."
+    kind: plate_3d
+    expect: {subjects: [monitor]}
+    source: "Ten Frames V2, shot 'monitor': Follow the pros / Track every game you roll."
+
+  # Ten Frames V1: the narration over the game capture.
+
+  - want: "That's bowling at its best: pins flying everywhere after the hit."
+    kind: plate_3d
+    expect: {events: [pins_falling]}
+    source: "Ten Frames V1: That's bowling at its best."
+
+  - want: "Pins scatter in super slow motion after the hit."
+    kind: plate_3d
+    expect: {events: [pins_falling], speed: [slow_5x, slow_10x]}
+    source: "Ten Frames V1: slow motion into the strike, then the pin scatter."
+
+  # League Night: Bill's narration and the shot plan.
+
+  - want: "Tuesday night. Seven o'clock. The whole house at league night under warm lights."
+    kind: plate_3d
+    expect: {subjects: [house], mood: league_night_warm}
+    source: "League Night, shot 1: Tuesday night. Seven o'clock."
+
+  - want: "Some folks come for the strikes: low on the lane near the pins, the ball hooks into the pocket and the pins go."
+    kind: plate_3d
+    expect: {events: [strike], camera_angle: low_front}
+    source: "League Night, shot 4: Some folks come for the strikes."
+
+  - want: "A kid rolling her very first strike: down the lane behind her as the ball rolls, slow and straight."
+    kind: plate_3d
+    expect: {camera_angle: behind_bowler, events: [roll]}
+    source: "League Night, shot 7: A kid rolling her very first strike."
+
+  - want: "The high-five after a tough spare: the 10 pin picked up."
+    kind: plate_3d
+    expect: {events: [spare_conversion]}
+    source: "League Night, shot 6: The high-five after a tough spare."
+
+  - want: "Bowling has always been about who you bowl with: the camera rises and pulls back until every pair of lanes is in view."
+    kind: plate_3d
+    expect: {subjects: [house], camera_move: [crane_up, pull_out]}
+    source: "League Night, shot 9: Bowling has always been about who you bowl with."
+
+  - want: "Find bowlers near you: something calm to sit behind the end card as the camera rises into the dark."
+    kind: plate_3d
+    expect: {story_uses: [call_to_action_backdrop]}
+    source: "League Night, shot 10: the end card."
+
+  - want: "Tony meets Linda with a high-five."
+    kind: character_action
+    expect: {character: tony, action: high_five}
+    source: "League Night, shot 6."
+
+  - want: "Mia jumps facing the pins with her arms up."
+    kind: character_action
+    expect: {character: mia, action: cheer}
+    source: "League Night, shot 8."
+
+  - want: "Ray folds over laughing at the dad's terrible joke."
+    kind: character_action
+    expect: {character: ray, action: laugh}
+    source: "League Night, shot 3: same terrible jokes."
+
+  - want: "Nana Rose beaming and clapping from the settee."
+    kind: character_action
+    expect: {character: rose, action: clap}
+    source: "League Night, shot 5."
+
+  - want: "Grace crosses back from the approach, unbothered."
+    kind: character_action
+    expect: {character: grace, action: walk}
+    source: "League Night, shot 5."
+
+  - want: "Linda, the spare specialist, releases her ball at the line."
+    kind: character_action
+    expect: {character: linda, action: bowl_release}
+    source: "League Night, shot 6."
+
+  - want: "The lanes and the settee at seven, a wide view of the whole set."
+    kind: environment_2d
+    expect: {place: lanes, framing: wide}
+    source: "League Night, shot 2."
+
+  - want: "Warm acoustic bed, fingerpicked guitar and light piano, swelling gently and resolving on its own ending."
+    kind: music_bed
+    expect: {music_mood: [warm, nostalgic]}
+    source: "League Night: the music direction."
+
+  - want: "Small group applause for the kid's first strike."
+    kind: sfx
+    expect: {sfx_category: applause}
+    source: "League Night, shot 8."
+
+  - want: "Bowling alley ambience: balls rolling, pins in the distance, chatter."
+    kind: sfx
+    expect: {sfx_category: [room_tone, crowd_murmur]}
+    source: "League Night, shot 1."
+
+  - want: "The slap of the high-five."
+    kind: sfx
+    expect: {sfx_category: high_five}
+    source: "League Night, shot 6: the slap lands on 'high-five'."
+
+  # Ten Frames: music and sound.
+
+  - want: "Driving sports promo bed, punchy drums, a deliberate drop to near silence before the strike, then the full band crashes back in."
+    kind: music_bed
+    expect: {arc: build_and_drop}
+    source: "Ten Frames: the music direction."
+
+  - want: "Ball rolling down the lane under the opening line."
+    kind: sfx
+    expect: {sfx_category: ball_roll}
+    source: "Ten Frames, 0:00 to 0:03."
+
+  - want: "The strike: pins crashing."
+    kind: sfx
+    expect: {sfx_category: pin_crash}
+    source: "Ten Frames, 0:16 to 0:18."
+
+  - want: "Crowd roar after the strike."
+    kind: sfx
+    expect: {sfx_category: crowd_cheer}
+    source: "Ten Frames, 0:16 to 0:18."
+
+  - want: "The laydown thump as the ball touches the lane."
+    kind: sfx
+    expect: {sfx_category: laydown}
+    source: "Ten Frames V2, shot 'laydown'."
+
+  # Bowling IQ 01: why does the ball hook?
+
+  - want: "Hero shot riding low beside the ball as it skids on the oil, spinning."
+    kind: plate_3d
+    expect: {events: [skid]}
+    source: "Bowling IQ 01, shots 'hero' and 'skid'."
+
+  - want: "Broadcast view from above: the ball's path bends at the breakpoint toward the pocket."
+    kind: plate_3d
+    expect: {events: [hook], camera_angle: overhead}
+    source: "Bowling IQ 01, shot 'broadcast'."
+
+  - want: "The ball drives into the 1-3 pocket at an angle, in extreme slow motion."
+    kind: plate_3d
+    expect: {events: [entry_into_pocket]}
+    source: "Bowling IQ 01, shot 'strike', front camera."
+
+  - want: "Calm, minimal bed under the explainer voice."
+    kind: music_bed
+    expect: {music_mood: [focused, quiet]}
+    source: "Bowling IQ: the music under the lesson."
+
+  # Bowling IQ: aiming (Del Warren's finding).
+
+  - want: "Aim a line, not a spot: top down on the arrows as the ball crosses the target board."
+    kind: plate_3d
+    expect: {subjects: [arrows], camera_angle: overhead}
+    source: "Bowling IQ Aiming, vo-4: Aim a line, not a spot."
+
+  - want: "Your eyes are centered but the ball swings by your leg: the bowler's own view down the lane."
+    kind: plate_3d
+    expect: {camera_angle: pov_bowler}
+    source: "Bowling IQ Aiming, vo-3 (shot 'pov')."
+
+  - want: "House shots hide your misses: a quiet practice session in an empty house."
+    kind: plate_3d
+    expect: {mood: morning_practice}
+    source: "Bowling IQ Aiming, vo-6."
+
+  - want: "And have a friend check it: from behind, the ball rolls over the arrows on line."
+    kind: plate_3d
+    expect: {camera_angle: behind_bowler}
+    source: "Bowling IQ Aiming, vo-6 (shot 'check')."
+
+  # Pick Up Your Spares.
+
+  - want: "The ten pin hurts right-handers most: the corner pin left standing alone."
+    kind: plate_3d
+    expect: {leave: "10"}
+    source: "Pick Up Your Spares: The ten pin hurts right-handers most."
+
+  - want: "Lefties, mirror it for the seven pin."
+    kind: plate_3d
+    expect: {leave: "7"}
+    source: "Pick Up Your Spares: Lefties, mirror it for the seven pin."
+
+  - want: "Stand on the left, aim across the lane and throw it straight: the 10 pin spare picked up."
+    kind: plate_3d
+    expect: {events: [spare_conversion]}
+    source: "Pick Up Your Spares: Stand on the left side of the approach."
+
+  - want: "Relaxed lo-fi, soft keys and brushed drums, kept low and steady under a teaching voice."
+    kind: music_bed
+    expect: {arc: steady}
+    source: "Pick Up Your Spares: the music direction."
+
+  # Beats every bowling video needs.
+
+  - want: "The dreaded bedposts: a 7-10 split stares back at the bowler."
+    kind: plate_3d
+    expect: {leave: "7-10"}
+    source: "Common beat: the impossible leave."
+
+  - want: "Washout: the head pin, the 2 and the 10 still standing."
+    kind: plate_3d
+    expect: {leave: washout}
+    source: "Common beat: a spare lesson."
+
+  - want: "Left bucket, the 2-4-5-8, seen from above."
+    kind: plate_3d
+    expect: {leave: bucket, camera_angle: overhead}
+    source: "Common beat: a spare lesson."
+
+  - want: "Big four: both corners and both fours left standing."
+    kind: plate_3d
+    expect: {leave: big_four}
+    source: "Common beat: the impossible leave."
+
+  - want: "A Brooklyn strike crossing over into the wrong pocket."
+    kind: plate_3d
+    expect: {events: [brooklyn_hit]}
+    source: "Common beat: the lucky strike."
+
+  - want: "Cosmic bowling night: blacklight and neon over the lanes."
+    kind: plate_3d
+    expect: {mood: cosmic}
+    source: "Common beat: cosmic night."
+
+  - want: "Tournament broadcast look: bright TV lighting on a strike from the replay camera."
+    kind: plate_3d
+    expect: {mood: tournament_tv, events: [strike]}
+    source: "Common beat: a Pro's big moment."
+
+  - want: "A messenger pin slides across the deck to take out the corner pin."
+    kind: plate_3d
+    expect: {events: [messenger_pin]}
+    source: "Common beat: the lucky strike."
+
+  - want: "Extreme close-up as the ball kisses the head pin."
+    kind: plate_3d
+    expect: {shot_size: extreme_close}
+    source: "Common beat: the moment of contact."
+
+  - want: "Aftermath: the pins lie still on the deck after the strike."
+    kind: plate_3d
+    expect: {events: [pins_settled]}
+    source: "Common beat: the breath out."
+
+  - want: "Clutch tenth frame: everything rides on this one ball."
+    kind: plate_3d
+    expect: {story_uses: [pressure]}
+    source: "Common beat: the last frame."
+
+  - want: "One bowler alone on an empty lane early in the morning."
+    kind: plate_3d
+    expect: {story_uses: [loneliness]}
+    source: "Common beat: the lonely grind."
+
+  - want: "The ball comes back up the return after the shot."
+    kind: plate_3d
+    expect: {events: [ball_return_arrival]}
+    source: "Common beat: between shots."
+
+  - want: "The sweep bar comes down and clears the deadwood."
+    kind: plate_3d
+    expect: {subjects: [sweep]}
+    source: "Common beat: between shots."
+
+  - want: "A soft tick as each label appears on screen."
+    kind: sfx
+    expect: {sfx_category: ui_tick}
+    source: "Bowling IQ: the label ticks."
