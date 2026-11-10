@@ -36,6 +36,7 @@ $BlenderSha256 = '723f08a4401502561eb763cdeacf8745b31e5f3f154d287d3830d97cf75dc2
 $BlenderVersion = 'Blender 5.2.3'
 $AmdDriverId = 'AMD.AMDSoftwareCloudEdition'
 $MinFreeGB = 50
+$SystemSid = '*S-1-5-18'
 $AdministratorsSid = '*S-1-5-32-544'
 $UsersSid = 'S-1-5-32-545'
 $AuthenticatedUsersSid = '*S-1-5-11'
@@ -480,7 +481,9 @@ function Step-Access {
     if (-not (Get-LocalUser -Name $NodeUser -ErrorAction SilentlyContinue)) { Report-Fail 'access' 'Run the account step first.' }
     # The node's account changes everything; administrators have full control; every signed-in account can read and
     # run the bn command, and can write the state folder (status, pause and resume from any account).
-    $grant = Invoke-Native 'icacls.exe' @($Root, '/grant', "${NodeAccount}:(OI)(CI)M", '/grant', "${AdministratorsSid}:(OI)(CI)F", '/grant', "${AuthenticatedUsersSid}:(OI)(CI)RX", '/Q')
+    # Inheritance from the drive is removed: a drive root often lets every signed-in user change everything below it,
+    # which would let any account change the node's code and run it as BNRender.
+    $grant = Invoke-Native 'icacls.exe' @($Root, '/inheritance:r', '/grant:r', "${SystemSid}:(OI)(CI)F", "${AdministratorsSid}:(OI)(CI)F", "${NodeAccount}:(OI)(CI)M", "${AuthenticatedUsersSid}:(OI)(CI)RX", '/Q')
     if ($grant.Code -ne 0) { Report-Fail 'access' "Permissions on $Root could not be set: $(Get-LastLines $grant.Output 1)" }
     $state = Invoke-Native 'icacls.exe' @($State, '/grant', "${AuthenticatedUsersSid}:(OI)(CI)M", '/Q')
     if ($state.Code -ne 0) { Report-Fail 'access' "Permissions on $State could not be set: $(Get-LastLines $state.Output 1)" }
