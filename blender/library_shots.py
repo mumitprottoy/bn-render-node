@@ -20,7 +20,7 @@ from mathutils import Vector
 import iq_shots as iq
 import lane_scene as ls
 
-TEMPLATE_VERSION = 1
+TEMPLATE_VERSION = 3
 MARGIN = 1.2
 SAFE_W, SAFE_H = ls.WIDTH, ls.HEIGHT
 PLATE_W, PLATE_H = round(SAFE_W * MARGIN), round(SAFE_H * MARGIN)
@@ -524,14 +524,18 @@ def bake_to_keyframes(objects: list, total: int) -> None:
 
 
 STRIKE_CAMERAS = dict(
-    # name: (lens, f-stop, eye, target): eye and target relative to the head pin spot (0, LANE_LEN, 0)
-    pin_cam=(40, 2.8, (0.07, 1.50, 0.80), (0.06, -1.6, 0.0)),
-    low_front=(40, 2.8, (-0.55, -1.6, 0.12), (0.03, 0.15, 0.17)),
-    side_high=(20, 4.0, (-0.62, -0.35, 1.05), (0.15, 0.45, 0.20)),
-    elevated_three_quarter=(28, 4.0, (0.65, -0.85, 0.70), (0.0, 0.45, 0.22)),
-    overhead=(24, None, (0.0, -0.25, 2.6), (0.0, -0.24, 0.0)),
-    behind_bowler=(50, None, (0.25, -LANE_LEN - 1.0, 1.1), (0.05, 0.0, 0.2)),
-    macro=(50, 2.8, (0.35, -0.45, 0.14), (0.05, 0.10, 0.12)),
+    # name: (lens, f-stop, eye, target, focus point), relative to the head pin spot (0, LANE_LEN, 0); focus point None
+    # means focus on the rack
+    pin_cam=(40, 2.8, (0.07, 1.50, 0.80), (0.06, -1.6, 0.0), None),
+    low_front=(40, 2.8, (-0.55, -1.6, 0.12), (0.03, 0.15, 0.17), None),
+    side_high=(20, 4.0, (-0.62, -0.35, 1.05), (0.15, 0.45, 0.20), None),
+    elevated_three_quarter=(28, 4.0, (0.65, -0.85, 0.70), (0.0, 0.45, 0.22), None),
+    overhead=(24, None, (0.0, -0.25, 2.6), (0.0, -0.24, 0.0), None),
+    # broadcast style, high behind the line: the ball at the foul line and the pins 60 ft away both in frame
+    behind_bowler=(30, None, (0.25, -LANE_LEN - 2.2, 1.9), (0.05, -LANE_LEN + 7.07, -1.85), None),
+    # low beside the ball's path on the right (never in it), about 0.55 m from the pins: the ball comes in from the
+    # left into the 1-3 pocket with the head pin and the 3 pin in frame; focus on the contact point
+    macro=(28, 2.8, (0.42, -0.62, 0.11), (0.06, 0.02, 0.13), (0.05, -0.12, 0.11)),
 )
 
 
@@ -553,7 +557,7 @@ def t_strike(parts: dict, params: dict) -> Plate:
     if result['standing']:
         raise RuntimeError(f'the strike left pins standing: {result["standing"]}')
     scene_frames = [max(1, min(total, contact + step * (index - contact_index))) for index in range(frames)]
-    lens, fstop, eye_offset, target_offset = STRIKE_CAMERAS[view]
+    lens, fstop, eye_offset, target_offset, focus_offset = STRIKE_CAMERAS[view]
     head_spot = Vector((0.0, LANE_LEN, 0.0))
     cam = camera(f'cam_{view}', lens, fstop)
     eye, target = head_spot + Vector(eye_offset), head_spot + Vector(target_offset)
@@ -565,7 +569,8 @@ def t_strike(parts: dict, params: dict) -> Plate:
     else:
         key_camera(cam, eye, target, 1)
         if fstop is not None:
-            cam.data.dof.focus_distance = (head_spot + Vector((0.0, 0.3, 0.2)) - eye).length
+            focus_point = head_spot + Vector(focus_offset if focus_offset is not None else (0.0, 0.3, 0.2))
+            cam.data.dof.focus_distance = (focus_point - eye).length
     rim_light('strike_rim')
     markers = dict(contact=contact_index + 1)
     if result['settled'] is not None:
