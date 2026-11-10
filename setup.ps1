@@ -86,6 +86,10 @@ function Update-SessionPath {
     $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + [Environment]::GetEnvironmentVariable('Path', 'User')
 }
 
+# Each step is its own process started from the same window, which keeps the PATH the window opened with. Reading the
+# current PATH finds programs an earlier step installed (Git, Python).
+Update-SessionPath
+
 function Invoke-Native([string]$File, [string[]]$Arguments) {
     # Runs a program and returns its exit code and output, without stopping on what it writes to stderr.
     if (-not (Get-Command $File -ErrorAction SilentlyContinue)) {
@@ -397,8 +401,9 @@ function Step-Venv {
         Start-Sleep -Seconds 10
     }
     if ($install.Code -ne 0) { Report-Fail 'venv' "pip install failed: $(Get-LastLines $install.Output 3)" }
-    $imports = Invoke-Native $VenvPython @('-c', 'import yaml, PIL, numpy, psutil; print("ok")')
-    if ($imports.Output.Trim() -ne 'ok') { Report-Fail 'venv' "The packages do not import: $(Get-LastLines $imports.Output 2)" }
+    # Checked by exit code: Windows PowerShell 5.1 strips double quotes inside arguments to native programs.
+    $imports = Invoke-Native $VenvPython @('-c', 'import yaml, PIL, numpy, psutil')
+    if ($imports.Code -ne 0) { Report-Fail 'venv' "The packages do not import: $(Get-LastLines $imports.Output 2)" }
     Report-Pass 'venv' "Python environment ready in $Venv"
 }
 
@@ -475,8 +480,8 @@ function Step-Access {
     if (-not (Get-LocalUser -Name $NodeUser -ErrorAction SilentlyContinue)) { Report-Fail 'access' 'Run the account step first.' }
     # The node's account changes everything; administrators have full control; every signed-in account can read and
     # run the bn command, and can write the state folder (status, pause and resume from any account).
-    $root = Invoke-Native 'icacls.exe' @($Root, '/grant', "${NodeAccount}:(OI)(CI)M", '/grant', "${AdministratorsSid}:(OI)(CI)F", '/grant', "${AuthenticatedUsersSid}:(OI)(CI)RX", '/Q')
-    if ($root.Code -ne 0) { Report-Fail 'access' "Permissions on $Root could not be set: $(Get-LastLines $root.Output 1)" }
+    $grant = Invoke-Native 'icacls.exe' @($Root, '/grant', "${NodeAccount}:(OI)(CI)M", '/grant', "${AdministratorsSid}:(OI)(CI)F", '/grant', "${AuthenticatedUsersSid}:(OI)(CI)RX", '/Q')
+    if ($grant.Code -ne 0) { Report-Fail 'access' "Permissions on $Root could not be set: $(Get-LastLines $grant.Output 1)" }
     $state = Invoke-Native 'icacls.exe' @($State, '/grant', "${AuthenticatedUsersSid}:(OI)(CI)M", '/Q')
     if ($state.Code -ne 0) { Report-Fail 'access' "Permissions on $State could not be set: $(Get-LastLines $state.Output 1)" }
     if (Test-Path $EnvFile) { Protect-EnvFile }
