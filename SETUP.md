@@ -21,10 +21,11 @@ BowlersNetwork API, registers it, and deletes it locally. After setup Boss uses 
 5. The work folder is `D:\bn-render`. If Boss says the PC has no D: drive, ask him which drive to use and add
    `-Root X:\bn-render` (his drive letter) to every `setup.ps1` command, and use that folder everywhere below.
 
-## Before you start: ask Boss for two things
+## Before you start: ask Boss for one thing
 
-1. **The repository URL** of the render node repo (for `git clone`).
-2. **The path of the key file** he brought (for example `E:\studio-node-api-key.txt` on a USB stick). Ask for the path
+The repository is `https://github.com/mumitprottoy/bn-render-node.git` (public, branch `main`).
+
+1. **The path of the key file** he brought (for example `E:\studio-node-api-key.txt` on a USB stick). Ask for the path
    only. Do not open the file.
 
 ## Step 0: administrator check
@@ -48,11 +49,11 @@ If that fails, install Git, then check again:
 winget install --id Git.Git -e --silent --scope machine --accept-package-agreements --accept-source-agreements
 ```
 
-Then clone the repository (replace `<REPO_URL>` with the URL Boss gave you):
+Then clone the repository:
 
 ```
 powershell.exe -NoProfile -Command "New-Item -ItemType Directory -Force -Path D:\bn-render | Out-Null"
-git clone --branch main <REPO_URL> D:/bn-render/app
+git clone --branch main https://github.com/mumitprottoy/bn-render-node.git D:/bn-render/app
 ```
 
 Expected: `Cloning into 'D:/bn-render/app'...` and no error. If `D:\bn-render\app` already exists and

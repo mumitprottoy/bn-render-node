@@ -288,7 +288,9 @@ def _render(settings: Settings, db: Database, now: float) -> str:
         eta = overview.eta_seconds
         # Rounded to the minute, like the time left beside it.
         finish_text = f'   done around {clock(now + eta + 30, with_day=True)}' if eta > 0 else str()
-        left = f'about {format_duration(eta)} left' if eta > 0 else 'nothing left to run'
+        all_done = overview.units_done >= overview.units_total
+        # right after a start the jobs are still being checked, so no time can be given yet
+        left = f'about {format_duration(eta)} left' if eta > 0 else ('nothing left to run' if all_done else 'checking the jobs, time left soon')
         lines.append(f'{"Overall":<10}{overview.units_done:,.0f} of {overview.units_total:,.0f} units done '
                      f'({overview.percent:.1f}%)   {left}{finish_text}')
     else:
