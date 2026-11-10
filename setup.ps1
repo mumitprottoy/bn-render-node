@@ -34,7 +34,6 @@ $BlenderZipName = 'blender-5.2.3-windows-x64.zip'
 $BlenderSize = 405839452
 $BlenderSha256 = '723f08a4401502561eb763cdeacf8745b31e5f3f154d287d3830d97cf75dc2fb'
 $BlenderVersion = 'Blender 5.2.3'
-$AmdDriverId = 'AMD.AMDSoftwareCloudEdition'
 $MinFreeGB = 50
 $SystemSid = '*S-1-5-18'
 $AdministratorsSid = '*S-1-5-32-544'
@@ -556,25 +555,9 @@ function Step-Selfcheck {
     if (@($failed | Where-Object { $_ -ne 'gpu' }).Count -gt 0) {
         Report-Fail 'selfcheck' "Failed checks: $($failed -join ', ') (the FAIL lines above)."
     }
-    # Only the graphics card failed: the AMD driver is installed if winget offers it. The node never renders GPU
-    # work on the CPU: until the card passes this check in the node's own session, GPU jobs wait.
-    $search = Invoke-Native 'winget' @('search', '--id', $AmdDriverId, '-e', '--accept-source-agreements')
-    if ($search.Output -notmatch [regex]::Escape($AmdDriverId)) {
-        Report-Fail 'selfcheck' 'Blender cannot use the graphics card, and no AMD driver is available through winget.'
-    }
-    Report-Note 'Installing the AMD graphics driver...'
-    Install-WithWinget $AmdDriverId @() | Out-Null
-    $result = Invoke-Bnrender @('selfcheck', '--report', $report)
-    Write-Host $result.Output
-    $failed = Get-FailedChecks $report
-    if ($failed.Count -eq 0) {
-        Report-Pass 'selfcheck' 'The AMD driver was installed; everything the node needs works.'
-        return
-    }
-    if (@($failed | Where-Object { $_ -ne 'gpu' }).Count -gt 0) {
-        Report-Fail 'selfcheck' "Failed checks: $($failed -join ', ') (the FAIL lines above)."
-    }
-    Report-Pass 'selfcheck' 'The AMD driver was installed and needs the restart; the node checks the graphics card again when it starts, and GPU jobs wait until it passes.'
+    # Only the graphics card failed. No driver is installed from here: winget's AMD package is a 2023 driver, which
+    # would replace a newer one. The node never renders GPU work on the CPU, so GPU jobs wait until this passes.
+    Report-Fail 'selfcheck' 'Blender cannot use the graphics card. Install the current AMD Software: Adrenalin Edition driver from amd.com, then run this step again.'
 }
 
 function New-NodeSettings {
