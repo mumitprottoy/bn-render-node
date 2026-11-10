@@ -1,0 +1,5 @@
+# The render node's Python packages (Python 3.12). Installed by setup.ps1 into D:\bn-render\venv.
+PyYAML==6.0.2
+Pillow==11.3.0
+numpy==2.2.6
+psutil==7.0.0
