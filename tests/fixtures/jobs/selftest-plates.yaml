@@ -1,0 +1,32 @@
+{
+  "id": "selftest-plates",
+  "title": "Self-test plates",
+  "kind": "plate_3d",
+  "device": "gpu",
+  "priority": 10,
+  "after": [],
+  "inputs": ["sources/assets/"],
+  "models": [],
+  "executor": "blender_item",
+  "entry": "render_item.py",
+  "items": [
+    {
+      "asset_id": "plate_3d/selftest/lane-push-a",
+      "title": "Self-test lane push A",
+      "group": "Self-test",
+      "description": "A short lane push used by the runner's tests.",
+      "labels": {"subjects": ["lane"], "mood": "league_night_warm"},
+      "params": {"template": "lane_push", "fake_frames": 4},
+      "estimate": {"frames": 4}
+    },
+    {
+      "asset_id": "plate_3d/selftest/lane-push-b",
+      "title": "Self-test lane push B",
+      "group": "Self-test",
+      "description": "A second short lane push used by the runner's tests.",
+      "labels": {"subjects": ["lane"], "mood": "league_night_warm"},
+      "params": {"template": "lane_push", "fake_frames": 5},
+      "estimate": {"frames": 5}
+    }
+  ]
+}
